@@ -282,7 +282,6 @@ SCRUTINY_STATUS slibiResetDevice (__IN__ PTR_SCRUTINY_DEVICE PtrDevice)
 {
 
     /* Based on the product type, we will have to return the device appropriately. */
-
     switch (PtrDevice->ProductFamily)
     {
     	#if defined (LIB_SUPPORT_CONTROLLER_IT) || defined (LIB_SUPPORT_CONTROLLER_MR)
@@ -295,7 +294,7 @@ SCRUTINY_STATUS slibiResetDevice (__IN__ PTR_SCRUTINY_DEVICE PtrDevice)
             return (edmiResetDevice (PtrDevice));
 		#endif
 		
-		#if defined (LIB_SUPPORT_CONTROLLER_SWITCH)
+		#if defined (LIB_SUPPORT_SWITCH)
         case SCRUTINY_PRODUCT_FAMILY_SWITCH:
             return (sdmiResetDevice (PtrDevice));
 		#endif
