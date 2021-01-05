@@ -90,6 +90,31 @@ S32 scrtnyLibOsiStrNCmp (const char *PtrStr1, const char *PtrStr2, size_t Num)
     #endif
 }
 
+
+/**
+ *
+ * @method  osiStringCompare()
+ *
+ * @param   PtrFirst        First String pointer to be compared
+ *
+ * @param   PtrSecond       Second String pointer to be compared
+ *
+ * @return  Status Indicating success or failure when there is a difference
+ *
+ * @brief   Function to compare two string
+ *
+ */
+
+S32 scrtnyLibOsiStringCompare (__IN__ const char *PtrFirst, __IN__ const char *PtrSecond)
+{
+    #ifdef OS_UEFI
+		return (AsciiStrCmp (PtrFirst,PtrSecond) );
+    #else
+		return (strcmp (PtrFirst, PtrSecond) );
+    #endif
+
+}
+
 VOID scrtnyLibOsiMemSet (__OUT__ VOID *PtrMem, __IN__ U8 FillChar, __IN__ U32 Size)
 {
     #ifdef OS_UEFI
@@ -160,6 +185,68 @@ VOID scrtnyLibOsiMemCopy (__OUT__ VOID *PtrDest, __IN__ const VOID *PtrSrc, __IN
 
 }
 
+VOID scrtnyLibOsiStrCopy (__OUT__ char *PtrDestination, __IN__ const char *PtrSource)
+{
+    #if defined(OS_UEFI)
+        efiStrCpy( PtrDestination, PtrSource);
+    #else
+        strcpy (PtrDestination, PtrSource);
+    #endif
+}
+
+U32 scrtnyLibOsiStrToHex(char hexVal[]) 
+{    
+    U32 len = strlen(hexVal); 
+    U32 dec_val = 0;  
+    // Initializing base value to 1, i.e 16^0 
+    U32 base = 1; 
+
+    S32 i;
+      
+    // Extracting characters as digits from last character 
+    for (i=len-1; i>=0; i--) 
+    {    
+        // if character lies in '0'-'9', converting  
+        // it to integral 0-9 by subtracting 48 from 
+        // ASCII value. 
+        if (hexVal[i]>='0' && hexVal[i]<='9') 
+        { 
+            dec_val += (hexVal[i] - 48)*base; 
+                  
+            // incrementing base by power 
+            base = base * 16; 
+        } 
+  
+        // if character lies in 'A'-'F' , converting  
+        // it to integral 10 - 15 by subtracting 55  
+        // from ASCII value 
+        else if (hexVal[i]>='A' && hexVal[i]<='F') 
+        { 
+            dec_val += (hexVal[i] - 55)*base; 
+          
+            // incrementing base by power 
+            base = base*16; 
+        }
+        // if character lies in 'a'-'f' , converting  
+        // it to integral 10 - 15 by subtracting 87  
+        // from ASCII value 
+        else if (hexVal[i]>='a' && hexVal[i]<='f') 
+        { 
+            dec_val += (hexVal[i] - 87)*base; 
+          
+            // incrementing base by power 
+            base = base*16; 
+        }
+        else if (hexVal[i]=='x' || hexVal[i]=='X')
+        {
+            break;
+        }
+         
+    } 
+      
+    return dec_val; 
+}
+
 void dumpBufferToConsole ( PU8 PtrBuffer,  U32 Size)
 {
     U32  index;
@@ -182,6 +269,303 @@ int HexDump(FILE *fp, U8 *dump, int count)
     return i;
 }
 
+
+static SCRUTINY_LIBTEST_CLI_DEVICECMDS	sCliSwitchCmds[] = {
+
+    { "-temperature",    	&scrtnySwGetTemperature  		},
+	{ "-getcoredump",    	&scrntyGetCoreDump			  	},
+	{ "-erasecoredump", 	&scrntyEraseCoreDump			},
+	{ "-gettrace", 			&scrtnySwitchGetTrace			},
+	{ "-gethealthlogs", 	&scrtnyGetHealthLogs			},
+	{ "-scsipassthru",		&scrtnyScsiPasshrough			}, 
+	{ "-getconfigpage",		&scrtnyGetConfigPage			}, 
+	{ "-geterrstat",  		&scrtnySwCounters	 			},
+	{ "-getportprop",  		&scrtnySwPortProperties			},
+	{ "-getccr", 	 		&scrtnySwCCRStatus				},
+	{ "-getpos", 	 		&scrtnySwPowerOnSense			},
+	{ "-rxeq", 	 			&scrtnySwRxEqStatus				},
+	{ "-txcoeff", 	 		&scrtnySwTxCoeff				},
+	{ "-sweye", 	 		&scrtnySwSoftEye				},
+	{ "-hweye", 	 		&scrtnySwHwEye					},
+	{ "-cli", 	 			&scrtnySwFwCli					},
+	{ "-gethealth", 	 	&scrtnySwitchGetHealth			},
+	{ "-getlogs", 	 		&scrtnyGetSwitchLogs			},
+	{ "-getlmcap", 	 		&scrtnySwGetLaneMarginCapacities},
+	{ "-perflm", 	 		&scrtnySwPerformLaneMargin		},
+	{ "-healthcheck", 	 	&scrtnySwitchHealthCheck		},
+	{ "-memread", 	 		&scrtnySwMemoryRead				},
+	{ "-memwrite", 	 		&scrtnySwMemoryWrite			},
+	{ "-reset", 	 		&scrtnySwitchResetDevice		},
+	{ "-alllogs", 			&scrtnyGetAllSwitchLogs			},
+	
+	
+	
+    /*          NULL TERMINATORs        */
+    { NULL,             NULL            				}
+};
+
+
+STATUS scrntySwitchArgumentsParse (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32 index = 0;
+	STATUS    funcStatus;
+	
+	(*PtrCurrentIndex) += 1;
+	
+	for (index = 0; ; index++)
+	{
+		if ((*PtrCurrentIndex) >= ArgumentCount)
+		{
+			break;
+		}
+
+		if (sCliSwitchCmds[index].PtrOption == NULL)
+		{
+			printf("invalid option for switch device %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			break;
+		}
+		
+		if (scrtnyLibOsiStringCompare (sCliSwitchCmds[index].PtrOption, PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			funcStatus = sCliSwitchCmds[index].FptrOptionFunc (ArgumentCount, PtrArguments, PtrCurrentIndex);
+			if (funcStatus == STATUS_CONTINUE)
+			{
+				// need further parse the remaining globle options
+				(*PtrCurrentIndex) += 1;
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	
+	return (STATUS_SUCCESS);
+}
+
+
+
+STATUS  scrtnyListDevice (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+
+    U32 numDevices = 0;
+    U32 deviceIndex = 0;
+
+    SCRUTINY_DEVICE_INFO        deviceInfo;
+
+    libStatus = ScrutinyDiscoverDevices (SCRUTINY_DISCOVERY_TYPE_INBAND, NULL);
+
+    if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("ScrutinyDiscoverDevices ().. Failed Status -  %x \n", libStatus);
+		printf ("Unable to discover any devices \n");
+        return (STATUS_FAILED);
+    }
+        
+    libStatus = ScrutinyGetDeviceCount (&numDevices);
+    
+    if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("ScrutinyiGetProductCount ().. Failed Status -  %x \n", libStatus);
+		printf ("Unable to get product count \n");
+		
+        return (STATUS_FAILED);
+    }
+
+    printf("\n\n");
+        
+    printf ("  %-15s %-18s %-16s\n", "Index", "FwVersion", "Type");
+    
+    for (deviceIndex = 0; deviceIndex < numDevices; deviceIndex++)
+    {   
+        libStatus = ScrutinyGetDeviceInfo (deviceIndex, sizeof (SCRUTINY_DEVICE_INFO), &deviceInfo);
+        
+        if (libStatus != SCRUTINY_STATUS_SUCCESS)
+        {
+            printf ("ScrutinyGetDeviceInfo ().. Failed Status -  %x \n", libStatus);
+        
+            return (STATUS_FAILED);
+        }
+		
+		#if defined (LIB_SUPPORT_CONTROLLER)
+        if (deviceInfo.ProductFamily == SCRUTINY_PRODUCT_FAMILY_CONTROLLER)
+        {
+            //call IOC function to print the device details
+
+            scrtnyControllerDetails (deviceIndex, &deviceInfo);
+
+        }
+		#endif
+
+		#if defined (LIB_SUPPORT_EXPANDER)
+		if (deviceInfo.ProductFamily == SCRUTINY_PRODUCT_FAMILY_EXPANDER)
+        {
+            scrtnyExpanderDetails (deviceIndex, &deviceInfo);
+
+        }
+		#endif
+
+		#if defined (LIB_SUPPORT_SWITCH)
+		if (deviceInfo.ProductFamily == SCRUTINY_PRODUCT_FAMILY_SWITCH)
+        {
+            scrtnySwitchDetails (deviceIndex, &deviceInfo);
+        }
+		#endif
+
+		continue;
+
+    }
+	
+	return (STATUS_SUCCESS);
+}
+
+STATUS  scrtnySdb (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+    SCRUTINY_DISCOVERY_PARAMS   discoveryParam;
+	SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+	
+	(*PtrCurrentIndex) += 1;
+	
+	if ((*PtrCurrentIndex >= ArgumentCount) || (PtrArguments[(*PtrCurrentIndex)][0] == '-'))
+    {
+        printf ("-sdb option must have an argument for the Serial/COM port name.\n");
+        return (STATUS_FAILED);
+    }
+	
+	scrtnyLibOsiMemSet (&discoveryParam.u.SerialConfig.DeviceName[0], '\0', sizeof(discoveryParam.u.SerialConfig.DeviceName));
+	scrtnyLibOsiStrCopy (&discoveryParam.u.SerialConfig.DeviceName[0], PtrArguments[(*PtrCurrentIndex)]);
+	
+	libStatus = ScrutinyDiscoverDevices (SCRUTINY_DISCOVERY_TYPE_SERIAL_DEBUG, &discoveryParam);
+  
+    if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("ScrutinyDiscoverDevices ().. Failed Status -  %x \n", libStatus);
+		printf ("Unable to discover any devices \n");
+        
+        return (STATUS_FAILED);
+    }
+	
+	
+	/*TODO: Need further check whether it's interactive mode or one-line mode */
+	
+	
+	return (STATUS_SUCCESS);
+}
+
+
+STATUS  scrtnySelectDevice (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	SCRUTINY_DEVICE_INFO        deviceInfo;
+	SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+	U32							numDevices;
+	
+	libStatus = ScrutinyDiscoverDevices (SCRUTINY_DISCOVERY_TYPE_INBAND, NULL);
+	if (libStatus != SCRUTINY_STATUS_SUCCESS)
+	{
+		gSelectDeviceHandle = 0xFF;
+		gSelectDeviceIndex = 0xFF;
+		printf ("ScrutinyDiscoverDevices ().. Failed Status -  %x \n", libStatus);
+		return (STATUS_FAILED);
+	}
+	
+	libStatus = ScrutinyGetDeviceCount (&numDevices);
+    
+    if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("ScrutinyiGetProductCount ().. Failed Status -  %x \n", libStatus);
+		printf ("Unable to get product count \n");
+		
+        return (STATUS_FAILED);
+    }
+	
+	(*PtrCurrentIndex) += 1;
+	
+	if ((*PtrCurrentIndex >= ArgumentCount) || (PtrArguments[(*PtrCurrentIndex)][0] == '-'))
+    {
+        printf ("-i option must have an argument for device index.\n");
+        return (STATUS_FAILED);
+    }
+	
+	gSelectDeviceIndex = atoi (PtrArguments[(*PtrCurrentIndex)]);
+	
+	if (gSelectDeviceIndex >= numDevices)
+	{
+		printf ("device index %d out of range! Total discovered device %d\n", gSelectDeviceIndex, numDevices);
+		return (STATUS_FAILED);
+	}
+	
+	libStatus = ScrutinyGetDeviceInfo (gSelectDeviceIndex, sizeof (SCRUTINY_DEVICE_INFO), &deviceInfo);
+	if (libStatus != SCRUTINY_STATUS_SUCCESS)
+	{
+		gSelectDeviceHandle = 0xFF;
+		gSelectDeviceIndex = 0xFF;
+		printf ("ScrutinyGetDeviceInfo ().. Failed Status -  %x \n", libStatus);
+		return (STATUS_FAILED);
+	}
+	
+	gSelectDeviceHandle = deviceInfo.ProductHandle;
+    
+	/* Try interactive mode here */
+	scrntySwitchArgumentsParse (ArgumentCount, PtrArguments, PtrCurrentIndex);
+	
+	return (STATUS_SUCCESS);
+}
+
+
+
+
+
+static SCRUTINY_LIBTEST_CLI_GLOBALCMDS sCliGlobalCmds[] = {
+
+    { "-list",  &scrtnyListDevice       },
+    { "-i",     &scrtnySelectDevice     },
+	{ "-sdb",   &scrtnySdb				},
+
+    /*          NULL TERMINATORs        */
+    { NULL,             NULL            }
+};
+
+
+STATUS globalArgumentsParse (int argc, char **argv)
+{
+	U32 index = 0, currentOption = 1;
+	STATUS    funcStatus;
+	
+	for (index = 0; ; index++)
+	{
+		if (currentOption >= argc)
+		{
+			break;
+		}
+
+		if (sCliGlobalCmds[index].PtrOption == NULL)
+		{
+			printf("invalid option %s\n", argv[currentOption]);
+			break;
+		}
+		
+		if (scrtnyLibOsiStringCompare (sCliGlobalCmds[index].PtrOption, argv[currentOption]) == 0)
+		{
+			funcStatus = sCliGlobalCmds[index].FptrOptionFunc (argc, (const char **)argv, &currentOption);
+			if (funcStatus == STATUS_CONTINUE)
+			{
+				// need further parse the remaining globle options
+				currentOption += 1;
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	
+	return (STATUS_SUCCESS);
+}
+
+
 int main (int argc, char **argv)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
@@ -202,22 +586,14 @@ int main (int argc, char **argv)
         return (1);
     }
 
-    if (argc > 1)
-    {
-        if (strcmp (argv[1], "-sdb"))
-        {
-            printf("\nUsage: scrutinyLibTest -sdb <uart_intf>\n");
-            goto out;
-        }
-        else 
-        {
-            ptrDevNode = argv[2];
-        }
-    }
-    
+	// parsing options
+	if (argc != 1) {
+		globalArgumentsParse (argc, argv);
+		return (0);
+	}
+	
     scrutinyTest (ptrDevNode);
 
-out:
     libStatus = ScrutinyExit ();
     
     if (libStatus != SCRUTINY_STATUS_SUCCESS)
@@ -463,7 +839,7 @@ STATUS scrtnyExpanderDetails (__IN__ U32 Index, __IN__ PTR_SCRUTINY_DEVICE_INFO 
 }
 
 
-STATUS scrtnySwitchGetTrace ()
+STATUS scrtnySwitchGetTrace (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     
@@ -521,6 +897,18 @@ STATUS scrtnySwitchGetTrace ()
     scrtnyLibOsiMemFree (ptrBuffer);
 
     return (STATUS_SUCCESS);
+}
+
+STATUS scrntyGetCoreDump (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	scrtnyCoreDump (1);
+	return (STATUS_SUCCESS);
+}
+
+STATUS scrntyEraseCoreDump (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	scrtnyCoreDump (2);
+	return (STATUS_SUCCESS);
 }
 
 STATUS scrtnyCoreDump (int InputOperation)
@@ -618,6 +1006,30 @@ STATUS scrtnyCoreDump (int InputOperation)
     scrtnyLibOsiMemFree (ptrBuffer);
     return (STATUS_SUCCESS);
 }
+
+
+STATUS scrtnyGetHealthLogs (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	int logType;
+	
+	(*PtrCurrentIndex) += 1;
+	
+	if ((*PtrCurrentIndex >= ArgumentCount) || (PtrArguments[(*PtrCurrentIndex)][0] == '-'))
+    {
+        printf ("-gethealthlogs option must have an argument for log type.\n");
+        return (STATUS_FAILED);
+    }
+		
+	logType = atoi (PtrArguments[(*PtrCurrentIndex)]);
+	
+	if (logType != 0)
+	{
+		scrtnySwitchHealthLogs (logType);
+	}
+	
+	return (STATUS_SUCCESS);
+}
+
 
 STATUS scrtnySwitchHealthLogs (int LogType)
 {
@@ -924,6 +1336,7 @@ STATUS scrtnySwitchDownloadSbr ()
     ptrBuffer = (PU8) scrtnyLibOsiMemAlloc (bufferSize);
     if (ptrBuffer == NULL)
     {
+		scrtnyLibFileClose (fPtr);
         printf("Unable to allocate memory, scrtnySwitchUploadSbr test failed\n");
         return STATUS_FAILED;
     }
@@ -934,6 +1347,7 @@ STATUS scrtnySwitchDownloadSbr ()
     if (status != STATUS_SUCCESS)
     {
         printf("Unable to get the SBR file length!\n");
+		scrtnyLibFileClose (fPtr);
         scrtnyLibOsiMemFree (ptrBuffer);
         return STATUS_FAILED;
     }
@@ -942,6 +1356,7 @@ STATUS scrtnySwitchDownloadSbr ()
     if (status != STATUS_SUCCESS)
     {
         printf("Unable to Read the SBR Image file!\n");
+		scrtnyLibFileClose (fPtr);
         scrtnyLibOsiMemFree (ptrBuffer);
         return STATUS_FAILED;
     }
@@ -950,6 +1365,7 @@ STATUS scrtnySwitchDownloadSbr ()
     if (libStatus != SCRUTINY_STATUS_SUCCESS)
     {
         printf("\n\nScrutinySwitchDownloadSbr test failed with status %x\n\n", libStatus);
+		scrtnyLibFileClose (fPtr);
         scrtnyLibOsiMemFree (ptrBuffer); 
         return STATUS_FAILED;
     }
@@ -960,6 +1376,8 @@ STATUS scrtnySwitchDownloadSbr ()
     if (verBuffer == NULL)
     {
         printf("Unable to allocate memory for verify buffer, scrtnySwitchUploadSbr test failed\n");
+		scrtnyLibOsiMemFree (ptrBuffer); 
+		scrtnyLibFileClose (fPtr);
         return STATUS_FAILED;
     }
     libStatus = ScrutinySwitchUploadSbr(&gSelectDeviceHandle, 0, 1, verBuffer, &bufferSize, NULL);
@@ -985,7 +1403,8 @@ STATUS scrtnySwitchDownloadSbr ()
         
     scrtnyLibOsiMemFree (verBuffer); 
     scrtnyLibOsiMemFree (ptrBuffer); 
-    
+    scrtnyLibFileClose (fPtr);
+	
     if (status == STATUS_SUCCESS)
     {
         printf("Successfully downloading the SBR image!\n");
@@ -1142,6 +1561,19 @@ STATUS scrtnySwitchSbrInfo ()
 }
 
 
+STATUS scrtnySwFwCli (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	(*PtrCurrentIndex) += 1;
+	
+	if ((*PtrCurrentIndex >= ArgumentCount) || (PtrArguments[(*PtrCurrentIndex)][0] == '-'))
+	{
+		printf("scrutinyLibTest -i <index> -cli <cmd_str>\n");
+		return (STATUS_FAILED);
+	}
+	
+	return (scrtnySwitchFwCli ( (PU8)PtrArguments[(*PtrCurrentIndex)]));
+}
+
 STATUS scrtnySwitchFwCli (PU8 PtrCmdLine)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
@@ -1198,16 +1630,28 @@ STATUS scrtnySwitchFwCli (PU8 PtrCmdLine)
     
 }
 
+STATUS scrtnySwGetTemperature (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	return (scrtnySwitchGetTemperature (NULL));
+}
 
-STATUS scrtnySwitchGetTemperature ()
+STATUS scrtnySwitchGetTemperature (SOSI_Test_FILE_HANDLE FilePtr)
 {
     U32 Temperature;
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+	SOSI_Test_FILE_HANDLE		fPtr = stdout;
+	
+	if (FilePtr != NULL)
+	{
+		fPtr = FilePtr;
+	}
+	
     libStatus= ScrutinyGetTemperature (&gSelectDeviceHandle, &Temperature);
-    
+   
     if (libStatus == SCRUTINY_STATUS_SUCCESS)
     {
-        printf("Switch Temperature = %d C degree \n", Temperature);
+		fprintf(fPtr, "---- Temperature ----\n");
+        fprintf(fPtr, "Switch Temperature = %d C degree \n", Temperature);
     }
     else 
     {
@@ -1217,63 +1661,63 @@ STATUS scrtnySwitchGetTemperature ()
     return STATUS_SUCCESS;
 }
 
-STATUS appPrintHeaders()
+STATUS appPrintHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 {
-    printf ("\n");
-    printf ("Type:  Port type Down-Downstream, Up-Upstream, Fab-Fabric Mode, Mgmt-Management\n");
-    printf ("MRR:   Max Read Request Size                 MPSS: Max Payload Size Supported\n");
-    printf ("MPS:   Max Payload Size                      Link: Link Width by Negotiated/Maximum\n");
-    printf ("Speed: Link Speed by Negotiated/Maximum   ClkMode: Clock Mode");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "Type:  Port type Down-Downstream, Up-Upstream, Fab-Fabric Mode, Mgmt-Management\n");
+    fprintf (FilePtr, "MRR:   Max Read Request Size                 MPSS: Max Payload Size Supported\n");
+    fprintf (FilePtr, "MPS:   Max Payload Size                      Link: Link Width by Negotiated/Maximum\n");
+    fprintf (FilePtr, "Speed: Link Speed by Negotiated/Maximum   ClkMode: Clock Mode");
 
-    printf ("\n");
-    printf ("%-5s %-10s %-5s %-5s %-5s %-5s %-13s %-10s %-7s  %-5s", "Port", "GID", "Type", "MRR", "MPS", "MPSS", "LinkSpeed", "LinkWidth", "ClkMode", "Up?");
-    printf ("\n");
-    printf ("----- ----- ----- ----- ----- ------------- ---------- -------- -----");
-    printf ("\n");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "%-5s %-10s %-5s %-5s %-5s %-5s %-13s %-10s %-7s  %-5s", "Port", "GID", "Type", "MRR", "MPS", "MPSS", "LinkSpeed", "LinkWidth", "ClkMode", "Up?");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "----- ----- ----- ----- ----- ------------- ---------- -------- -----");
+    fprintf (FilePtr, "\n");
     return (STATUS_SUCCESS);
 
 }
 
-STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration)
+STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
 {
 
     /* Port Index */
-    printf ("%-5d ", PortIndex);
+    fprintf (FilePtr, "%-5d ", PortIndex);
 
     /* Port GID */
-    printf ("%-10x ", PtrConfiguration->GID);
+    fprintf (FilePtr, "%-10x ", PtrConfiguration->GID);
 
     /* Print Port type */
 
     switch (PtrConfiguration->PortType)
     {
         case SWITCH_PORT_TYPE_DOWNSTREAM:
-            printf ("%-5s ", "Down");
+            fprintf (FilePtr, "%-5s ", "Down");
             break;
 
         case SWITCH_PORT_TYPE_FABRIC:
-            printf ("%-5s ", "Fab");
+            fprintf (FilePtr, "%-5s ", "Fab");
             break;
 
         case SWITCH_PORT_TYPE_MANAGEMENT:
-            printf ("%-5s ", "Mgmt");
+            fprintf (FilePtr, "%-5s ", "Mgmt");
             break;
 
         case SWITCH_PORT_TYPE_UPSTREAM:
-            printf ("%-5s ", "Host");
+            fprintf (FilePtr, "%-5s ", "Host");
             break;
 
         case SWITCH_PORT_TYPE_UPSTREAM_BSW:
-            printf ("%-5s ", "Host");
+            fprintf (FilePtr, "%-5s ", "Host");
             break;
 
         case SWITCH_PORT_TYPE_DOWNSTREAM_BSW:
-            printf ("%-5s ", "Down");
+            fprintf (FilePtr, "%-5s ", "Down");
             break;
 
 
         default:
-            printf ("%-5s ", "-");
+            fprintf (FilePtr, "%-5s ", "-");
             break;
     }
 
@@ -1282,27 +1726,27 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
     switch (PtrConfiguration->MaxReadRequestSize)
     {
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_128_BYTES:
-            printf ("%-5s ", "128");
+            fprintf (FilePtr, "%-5s ", "128");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_256_BYTES:
-            printf ("%-5s ", "256");
+            fprintf (FilePtr, "%-5s ", "256");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_512_BYTES:
-            printf ("%-5s ", "512");
+            fprintf (FilePtr, "%-5s ", "512");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_1024_BYTES:
-            printf ("%-5s ", "1024");
+            fprintf (FilePtr, "%-5s ", "1024");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_2048_BYTES:
-            printf ("%-5s ", "2048");
+            fprintf (FilePtr, "%-5s ", "2048");
             break;
 
         default:
-            printf ("%-5s ", "-");
+            fprintf (FilePtr, "%-5s ", "-");
             break;
 
     }
@@ -1312,27 +1756,27 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
     switch (PtrConfiguration->MaxPayloadSize)
     {
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_128_BYTES:
-            printf ("%-5s ", "128");
+            fprintf (FilePtr, "%-5s ", "128");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_256_BYTES:
-            printf ("%-5s ", "256");
+            fprintf (FilePtr, "%-5s ", "256");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_512_BYTES:
-            printf ("%-5s ", "512");
+            fprintf (FilePtr, "%-5s ", "512");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_1024_BYTES:
-            printf ("%-5s ", "1024");
+            fprintf (FilePtr, "%-5s ", "1024");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_2048_BYTES:
-            printf ("%-5s ", "2048");
+            fprintf (FilePtr, "%-5s ", "2048");
             break;
 
         default:
-            printf ("%-5s ", "-");
+            fprintf (FilePtr, "%-5s ", "-");
             break;
 
     }
@@ -1340,27 +1784,27 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
     switch (PtrConfiguration->MaxPayloadSizeSupport)
     {
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_128_BYTES:
-            printf ("%-5s ", "128");
+            fprintf (FilePtr, "%-5s ", "128");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_256_BYTES:
-            printf ("%-5s ", "256");
+            fprintf (FilePtr, "%-5s ", "256");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_512_BYTES:
-            printf ("%-5s ", "512");
+            fprintf (FilePtr, "%-5s ", "512");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_1024_BYTES:
-            printf ("%-5s ", "1024");
+            fprintf (FilePtr, "%-5s ", "1024");
             break;
 
         case PCI_DEVICE_CAPABILITY_PAYLOAD_SIZE_2048_BYTES:
-            printf ("%-5s ", "2048");
+            fprintf (FilePtr, "%-5s ", "2048");
             break;
 
         default:
-            printf ("%-5s ", "-");
+            fprintf (FilePtr, "%-5s ", "-");
             break;
 
     }
@@ -1371,19 +1815,19 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
         switch (PtrConfiguration->NegotiatedLinkSpeed)
         {
             case PCI_DEVICE_LINK_SPEED_GEN_1:
-                printf ("%-5s/ ", "Gen1");
+                fprintf (FilePtr, "%-5s/ ", "Gen1");
                 break;
             case PCI_DEVICE_LINK_SPEED_GEN_2:
-                printf ("%-5s/ ", "Gen2");
+                fprintf (FilePtr, "%-5s/ ", "Gen2");
                 break;
             case PCI_DEVICE_LINK_SPEED_GEN_3:
-                printf ("%-5s/ ", "Gen3");
+                fprintf (FilePtr, "%-5s/ ", "Gen3");
                 break;
             case PCI_DEVICE_LINK_SPEED_GEN_4:
-                printf ("%-5s/ ", "Gen4");
+                fprintf (FilePtr, "%-5s/ ", "Gen4");
                 break;
             default:
-                printf ("%-5s/ ", "-");
+                fprintf (FilePtr, "%-5s/ ", "-");
                 break;
         }
 
@@ -1391,25 +1835,25 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
 
     else
     {
-        printf ("%-5s/ ", "-");
+        fprintf (FilePtr, "%-5s/ ", "-");
     }
 
     switch (PtrConfiguration->MaxLinkSpeed)
     {
         case PCI_DEVICE_LINK_SPEED_GEN_1:
-            printf ("%-5s  ", "Gen1");
+            fprintf (FilePtr, "%-5s  ", "Gen1");
             break;
         case PCI_DEVICE_LINK_SPEED_GEN_2:
-            printf ("%-5s  ", "Gen2");
+            fprintf (FilePtr, "%-5s  ", "Gen2");
             break;
         case PCI_DEVICE_LINK_SPEED_GEN_3:
-            printf ("%-5s  ", "Gen3");
+            fprintf (FilePtr, "%-5s  ", "Gen3");
             break;
         case PCI_DEVICE_LINK_SPEED_GEN_4:
-            printf ("%-5s  ", "Gen4");
+            fprintf (FilePtr, "%-5s  ", "Gen4");
             break;
         default:
-            printf ("%-5s  ", "-");
+            fprintf (FilePtr, "%-5s  ", "-");
             break;
     }
 
@@ -1418,27 +1862,27 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
     {
 
         case PCI_DEVICE_LINK_WIDTH_x1:
-            printf ("%-4s/ ", "x1");
+            fprintf (FilePtr, "%-4s/ ", "x1");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x2:
-            printf ("%-4s/ ", "x2");
+            fprintf (FilePtr, "%-4s/ ", "x2");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x4:
-            printf ("%-4s/ ", "x4");
+            fprintf (FilePtr, "%-4s/ ", "x4");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x8:
-            printf ("%-4s/ ", "x8");
+            fprintf (FilePtr, "%-4s/ ", "x8");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x16:
-            printf ("%-4s/ ", "x16");
+            fprintf (FilePtr, "%-4s/ ", "x16");
             break;
 
         default:
-            printf ("%-4s/ ", "-");
+            fprintf (FilePtr, "%-4s/ ", "-");
             break;
 
     }
@@ -1447,27 +1891,27 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
     {
 
         case PCI_DEVICE_LINK_WIDTH_x1:
-            printf ("%-4s ", "x1");
+            fprintf (FilePtr, "%-4s ", "x1");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x2:
-            printf ("%-4s ", "x2");
+            fprintf (FilePtr, "%-4s ", "x2");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x4:
-            printf ("%-4s ", "x4");
+            fprintf (FilePtr, "%-4s ", "x4");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x8:
-            printf ("%-4s ", "x8");
+            fprintf (FilePtr, "%-4s ", "x8");
             break;
 
         case PCI_DEVICE_LINK_WIDTH_x16:
-            printf ("%-4s ", "x16");
+            fprintf (FilePtr, "%-4s ", "x16");
             break;
 
         default:
-            printf ("%-4s ", "-");
+            fprintf (FilePtr, "%-4s ", "-");
             break;
     }
 
@@ -1476,19 +1920,19 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
     {
 
         case PCI_LINK_MODE_TYPE_COMMON_CLOCK:
-            printf ("%-7s  ", "Common");
+            fprintf (FilePtr, "%-7s  ", "Common");
             break;
 
         case PCI_LINK_MODE_TYPE_SRIS:
-            printf ("%-7s  ", "SRIS");
+            fprintf (FilePtr, "%-7s  ", "SRIS");
             break;
 
         case PCI_LINK_MODE_TYPE_SSC_ISOLATION:
-            printf ("%-7s  ", "SSC");
+            fprintf (FilePtr, "%-7s  ", "SSC");
             break;
 
         default:
-            printf ("%-7s  ", "-");
+            fprintf (FilePtr, "%-7s  ", "-");
             break;
 
     }
@@ -1497,152 +1941,165 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
 
     if (PtrConfiguration->NegotiatedLinkWidth)
     {
-        printf ("%-5s", "Up");
+        fprintf (FilePtr, "%-5s", "Up");
     }
 
     else
     {
-        printf ("%-5s", "Down");
+        fprintf (FilePtr, "%-5s", "Down");
     }
 
-    printf ("\n");
-    printf ("\n");
-
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "\n");
 
     return (STATUS_SUCCESS);
 
 }
 
-STATUS appPrintDownStreamPortHeaders()
+STATUS appPrintDownStreamPortHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 {
-    printf ("\n");
-    printf ("Downstream Ports \n");
-    printf ("\n");
-    printf ("%-5s %-12s %-17s  %-19s  %57s", "Port", "DS Buses", "Phys Slot Number",  "Assigned Host Port", "Attached Device VID DID SVD SID ClassCode SubClassCode" );
-    printf ("\n");
-    printf ("----- ----- ----- ----- ----- ------------- ---------- -------- ----- ------------------ -----------");
-    printf ("\n");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "Downstream Ports \n");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "%-5s %-12s %-17s  %-19s  %57s", "Port", "DS Buses", "Phys Slot Number",  "Assigned Host Port", "Attached Device VID DID SVD SID ClassCode SubClassCode" );
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "----- ----- ----- ----- ----- ------------- ---------- -------- ----- ------------------ -----------");
+    fprintf (FilePtr, "\n");
     return (STATUS_SUCCESS);
 
 }
 
-STATUS appPrintDownStreamPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration)
+STATUS appPrintDownStreamPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
 {
 
 
     /* Port Index */
-    printf ("%-5d", PortIndex);// default is right align, '-' means left align.
+    fprintf (FilePtr, "%-5d", PortIndex);// default is right align, '-' means left align.
 
-    printf ("%5Xh", PtrConfiguration->u.Ds.GblBusSec);
-    printf ("->");
-    printf ("%Xh      ", PtrConfiguration->u.Ds.GblBusSub);
+    fprintf (FilePtr, "%5Xh", PtrConfiguration->u.Ds.GblBusSec);
+    fprintf (FilePtr, "->");
+    fprintf (FilePtr, "%Xh      ", PtrConfiguration->u.Ds.GblBusSub);
     
-    printf ("%-17d", PtrConfiguration->u.Ds.ChassisPhysSlotNum);
+    fprintf (FilePtr, "%-17d", PtrConfiguration->u.Ds.ChassisPhysSlotNum);
 
-    printf ("%-19d", PtrConfiguration->u.Ds.HostPortNum);
+    fprintf (FilePtr, "%-19d", PtrConfiguration->u.Ds.HostPortNum);
 
     if (PtrConfiguration->u.Ds.AttachedDevice.DataValid)
     {
-        printf ("%25Xh", PtrConfiguration->u.Ds.AttachedDevice.VendorId);
-        printf ("%5Xh", PtrConfiguration->u.Ds.AttachedDevice.DeviceId);
-        printf ("%5Xh", PtrConfiguration->u.Ds.AttachedDevice.SubVendorID);
-        printf ("%5Xh", PtrConfiguration->u.Ds.AttachedDevice.SubDeviceID);
-        printf ("%5Xh", PtrConfiguration->u.Ds.AttachedDevice.ClassCode);
-        printf ("%5Xh", PtrConfiguration->u.Ds.AttachedDevice.SubClassCode);
+        fprintf (FilePtr, "%25Xh", PtrConfiguration->u.Ds.AttachedDevice.VendorId);
+        fprintf (FilePtr, "%5Xh", PtrConfiguration->u.Ds.AttachedDevice.DeviceId);
+        fprintf (FilePtr, "%5Xh", PtrConfiguration->u.Ds.AttachedDevice.SubVendorID);
+        fprintf (FilePtr, "%5Xh", PtrConfiguration->u.Ds.AttachedDevice.SubDeviceID);
+        fprintf (FilePtr, "%5Xh", PtrConfiguration->u.Ds.AttachedDevice.ClassCode);
+        fprintf (FilePtr, "%5Xh", PtrConfiguration->u.Ds.AttachedDevice.SubClassCode);
     }
-    printf("\n");
+    fprintf(FilePtr, "\n");
     return (STATUS_SUCCESS);
 
 }
 
 
-STATUS appPrintHostPortHeaders()
+STATUS appPrintHostPortHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 {
-    printf ("\n");
-    printf ("Host Ports \n");
-    printf ("\n");
-    printf ("%-5s %-17s", "Port",  "Assigned DS Ports");
-    printf ("\n");
-    printf ("----- ----- ----- ----- ----- ------------- ---------- -------- -----");
-    printf ("\n");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "Host Ports \n");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "%-5s %-17s", "Port",  "Assigned DS Ports");
+    fprintf (FilePtr, "\n");
+    fprintf (FilePtr, "----- ----- ----- ----- ----- ------------- ---------- -------- -----");
+    fprintf (FilePtr, "\n");
     return (STATUS_SUCCESS);
 
 }
 
-STATUS appPrintHostPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration)
+STATUS appPrintHostPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
 {
     U32 index;
 
     /* Port Index */
-    printf ("%-5d\n", PortIndex);// default is right align, '-' means left align.
+    fprintf (FilePtr, "%-5d\n", PortIndex);// default is right align, '-' means left align.
 
     for (index = 0; index < 128; index++)
     {
         if (((PtrConfiguration->u.Host.DsPortMask[index/32] >> (index % 32)) &0x01) == 1)
         {
-            printf("       %d,\n ", index);
+            fprintf(FilePtr, "       %d,\n ", index);
         }
     }
     
-    printf("\n");
+    fprintf(FilePtr, "\n");
     return (STATUS_SUCCESS);
 
 }
 
-STATUS ScrutinySwitchDecodePciePortProperties (PTR_SCRUTINY_SWITCH_PORT_PROPERTIES  PtrPciePortProperties)
+STATUS ScrutinySwitchDecodePciePortProperties (
+	PTR_SCRUTINY_SWITCH_PORT_PROPERTIES  PtrPciePortProperties, 
+	SOSI_Test_FILE_HANDLE  FilePtr
+)
 {
     U32                               entryIndex;
     U32                               portIndex;
     PTR_SWITCH_PORT_CONFIGURATION     ptrConfiguration;
 
     //common
-    appPrintHeaders();
+    appPrintHeaders(FilePtr);
     for (entryIndex = 0; entryIndex < PtrPciePortProperties->TotalPortConfigEntry; entryIndex++)
     {
         ptrConfiguration = &(PtrPciePortProperties->PortConfigurations[entryIndex]);
         portIndex = PtrPciePortProperties->PortConfigurations[entryIndex].PortNumber; 
-        appPrintPortProperties (portIndex,  ptrConfiguration);
+        appPrintPortProperties (portIndex,  ptrConfiguration, FilePtr);
     }
 
     //downstream port
-    appPrintDownStreamPortHeaders();
+    appPrintDownStreamPortHeaders (FilePtr);
     for (entryIndex = 0; entryIndex < PtrPciePortProperties->TotalPortConfigEntry; entryIndex++)
     {
         ptrConfiguration = &(PtrPciePortProperties->PortConfigurations[entryIndex]);
         portIndex = PtrPciePortProperties->PortConfigurations[entryIndex].PortNumber;
         if ((ptrConfiguration->PortType == SWITCH_PORT_TYPE_DOWNSTREAM) || (ptrConfiguration->PortType == SWITCH_PORT_TYPE_DOWNSTREAM_BSW))
         { 
-            appPrintDownStreamPortProperties (portIndex,  ptrConfiguration);
+            appPrintDownStreamPortProperties (portIndex,  ptrConfiguration, FilePtr);
         }
     }
 
     
     //Host port
-    appPrintHostPortHeaders();
+    appPrintHostPortHeaders(FilePtr);
     for (entryIndex = 0; entryIndex < PtrPciePortProperties->TotalPortConfigEntry; entryIndex++)
     {
         ptrConfiguration = &(PtrPciePortProperties->PortConfigurations[entryIndex]);
         portIndex = PtrPciePortProperties->PortConfigurations[entryIndex].PortNumber;
         if ((ptrConfiguration->PortType == SWITCH_PORT_TYPE_UPSTREAM) || (ptrConfiguration->PortType == SWITCH_PORT_TYPE_UPSTREAM_BSW))
         { 
-            appPrintHostPortProperties (portIndex,  ptrConfiguration);
+            appPrintHostPortProperties (portIndex,  ptrConfiguration, FilePtr);
         }
     }
 
-    
-    
     return (STATUS_SUCCESS);
 }
 
-STATUS scrtnySwitchPortProperties ()
+STATUS scrtnySwPortProperties (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	return (scrtnySwitchPortProperties (NULL));
+}
+
+
+STATUS scrtnySwitchPortProperties (SOSI_Test_FILE_HANDLE  FilePtr)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     SCRUTINY_SWITCH_PORT_PROPERTIES  PciePortProperties;
+	SOSI_Test_FILE_HANDLE 		fPtr = stdout;
+	
+	if (FilePtr != NULL)
+	{
+		fPtr = FilePtr;
+	}
     
     libStatus = ScrutinySwitchGetPciePortProperties (&gSelectDeviceHandle, &PciePortProperties);
     if (libStatus == SCRUTINY_STATUS_SUCCESS)
     {
-        ScrutinySwitchDecodePciePortProperties (&PciePortProperties);
+		fprintf (fPtr, "---- Port Properties ----\n");
+        ScrutinySwitchDecodePciePortProperties (&PciePortProperties, fPtr);
     }
     else 
     {
@@ -1652,34 +2109,154 @@ STATUS scrtnySwitchPortProperties ()
     return STATUS_SUCCESS;
 }
 
+STATUS scrtnySwPerformLaneMargin (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		port, lane, timeSteps, volSteps, errorLimit;
+	port = lane = timeSteps = volSteps = errorLimit = INVALID_PARAMETER;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-port", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				port = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -perflm -port <value> -lanes <value> -timesteps <value> -volsteps <value> -errlmt <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-lanes", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				lane = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("-i <index> -perflm -port <value> -lanes <value> -timesteps <value> -volsteps <value> -errlmt <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-timesteps", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				timeSteps = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("-i <index> -perflm -port <value> -lanes <value> -timesteps <value> -volsteps <value> -errlmt <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-volsteps", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				volSteps = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("-i <index> -perflm -port <value> -lanes <value> -timesteps <value> -volsteps <value> -errlmt <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-errlmt", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				errorLimit = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("-i <index> -perflm -port <value> -lanes <value> -timesteps <value> -volsteps <value> -errlmt <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("-i <index> -perflm -port <value> -lanes <value> -timesteps <value> -volsteps <value> -errlmt <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	
+	return (scrtnySwitchPerformLaneMargin (port, lane, timeSteps, volSteps, errorLimit));
+}
 
-STATUS scrtnySwitchPerformLaneMargin ()
+STATUS scrtnySwitchPerformLaneMargin (U32 Port, U32 Lanes, U32 TimeSteps, U32 VolSteps, U32 ErrorLimit)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     U32   portNum = 0, lanes = 0, errorCount =0, index;
     U32   numTimeSteps, numVoltageSteps;  
     SCRUTINY_SWITCH_LANE_MARGIN_REQUEST   request;
     PTR_SCRUTINY_SWITCH_LANE_MARGIN_RESPONSE    ptrResponse, ptrResponse2;
+	
+	if (Port == INVALID_PARAMETER)
+	{
+		printf("Input the Port Number: ");
+		fflush(stdin);
+		scanf("%d",&portNum);
+	}
+	else
+	{
+		portNum = Port;
+	}
+	
+	if (Lanes == INVALID_PARAMETER)
+	{
+		printf("Input the the number of lanes: ");
+		fflush(stdin);
+		scanf("%d",&lanes);
+	}
+	else
+	{
+		lanes = Lanes;
+	}
+	
+	if (TimeSteps == INVALID_PARAMETER)
+	{
+		printf("Input the number of Time Steps: ");
+		fflush(stdin);
+		scanf("%d",&numTimeSteps);
+	}
+	else
+	{
+		numTimeSteps = TimeSteps;
+	}
+	
+	if (VolSteps == INVALID_PARAMETER)
+	{
+		printf("Input the number of Voltage Steps: ");
+		fflush(stdin);
+		scanf("%d",&numVoltageSteps);
+	}
+	else
+	{
+		numVoltageSteps = VolSteps;
+	}
 
-    printf("Input the Port Number: ");
-    fflush(stdin);
-    scanf("%d",&portNum);
-
-    printf("Input the the number of lanes: ");
-    fflush(stdin);
-    scanf("%d",&lanes);
-
-    printf("Input the number of Time Steps: ");
-    fflush(stdin);
-    scanf("%d",&numTimeSteps);
-
-    printf("Input the number of Voltage Steps: ");
-    fflush(stdin);
-    scanf("%d",&numVoltageSteps);
-
-    printf("Input the Error Count Limit: ");
-    fflush(stdin);
-    scanf("%d",&errorCount);
+	if (ErrorLimit == INVALID_PARAMETER)
+	{	
+		printf("Input the Error Count Limit: ");
+		fflush(stdin);
+		scanf("%d",&errorCount);
+	}
+	else
+	{
+		errorCount = ErrorLimit;
+	}
 
     if (lanes > 16)
     {
@@ -1723,20 +2300,81 @@ STATUS scrtnySwitchPerformLaneMargin ()
     return (STATUS_SUCCESS); 
 }
 
-STATUS scrtnySwitchGetLaneMarginCapacities()
+STATUS scrtnySwGetLaneMarginCapacities (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		port, lane;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-port", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				port = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -getlmcap -port <value> -lane <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-lane", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				lane = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -getlmcap -port <value> -lane <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -getlmcap -port <value> -lane <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	
+	return (scrtnySwitchGetLaneMarginCapacities (port, lane));
+}
+
+
+STATUS scrtnySwitchGetLaneMarginCapacities(U32 Port, U32 Lanes)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     U32   portNum = 0, laneNum = 0;
     U32   marginControllCapabilities;
     U32   numSteps, maxOffset;  
-
-    printf("Input the Port Number: ");
-    fflush(stdin);
-    scanf("%d",&portNum);
-
-    printf("Input the Lane Number: ");
-    fflush(stdin);
-    scanf("%d",&laneNum);
+	
+	if (Port == INVALID_PARAMETER)
+	{
+		printf("Input the Port Number: ");
+		fflush(stdin);
+		scanf("%d",&portNum);
+	}
+	else
+	{
+		portNum = Port;
+	}
+	
+	if (Lanes == INVALID_PARAMETER)
+	{
+		printf("Input the Lane Number: ");
+		fflush(stdin);
+		scanf("%d",&laneNum);
+	}
+	else
+	{
+		laneNum = Lanes;
+	}
 
     libStatus = ScrutinySwitchGetLaneMarginCapacities (&gSelectDeviceHandle, portNum, laneNum, &marginControllCapabilities, 
         &numSteps, &maxOffset);
@@ -1756,12 +2394,22 @@ STATUS scrtnySwitchGetLaneMarginCapacities()
     
 }
 
-STATUS scrtnySwitchCCRStatus ()
+STATUS scrtnySwCCRStatus (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	return (scrtnySwitchCCRStatus (NULL));
+}
+
+STATUS scrtnySwitchCCRStatus (SOSI_Test_FILE_HANDLE FilePtr)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     PTR_SCRUTINY_SWITCH_CCR_STATUS            PtrSwCcrStatus;
-    
-
+	SOSI_Test_FILE_HANDLE		fPtr = stdout;
+	
+	if (FilePtr != NULL)
+	{
+		fPtr = FilePtr;
+	}
+	
     //start the specific code
     PtrSwCcrStatus = (PTR_SCRUTINY_SWITCH_CCR_STATUS) scrtnyLibOsiMemAlloc (sizeof(SCRUTINY_SWITCH_CCR_STATUS));
     if (PtrSwCcrStatus == NULL)
@@ -1781,85 +2429,84 @@ STATUS scrtnySwitchCCRStatus ()
         return STATUS_FAILED;
     }
         
-    
-    printf ("S0PcePerstN = %d\n",  PtrSwCcrStatus->S0PcePerstN);
-    printf ("S1PcePerstN = %d\n",  PtrSwCcrStatus->S1PcePerstN);
-    printf ("S2PcePerstN = %d\n",  PtrSwCcrStatus->S2PcePerstN);
-    printf ("S3PcePerstN = %d\n",  PtrSwCcrStatus->S3PcePerstN);
+    fprintf (fPtr, "---- CCR Status ----\n");
+    fprintf (fPtr, "S0PcePerstN = %d\n",  PtrSwCcrStatus->S0PcePerstN);
+    fprintf (fPtr, "S1PcePerstN = %d\n",  PtrSwCcrStatus->S1PcePerstN);
+    fprintf (fPtr, "S2PcePerstN = %d\n",  PtrSwCcrStatus->S2PcePerstN);
+    fprintf (fPtr, "S3PcePerstN = %d\n",  PtrSwCcrStatus->S3PcePerstN);
     switch (PtrSwCcrStatus->SBLHwBootLoc)
     {
         case SBL_HW_BOOT_LOC_0000_0400:
         {
-            printf ("SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0000_0400");
+            fprintf (fPtr, "SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0000_0400");
             break;
         }
         case SBL_HW_BOOT_LOC_0004_0400:
         {
-            printf ("SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0004_0400");
+            fprintf (fPtr, "SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0004_0400");
             break;
         }
         case SBL_HW_BOOT_LOC_0008_0400:
         {
-            printf ("SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0008_0400");
+            fprintf (fPtr, "SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0008_0400");
             break;
         }
         case SBL_HW_BOOT_LOC_000C_0400:
         {
-            printf ("SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_000C_0400");
+            fprintf (fPtr, "SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_000C_0400");
             break;
         }
         case SBL_HW_BOOT_LOC_0010_0400:
         {
-            printf ("SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0010_0400");
+            fprintf (fPtr, "SBLHwBootLoc = %s\n", "SBL_HW_BOOT_LOC_0010_0400");
             break;
         }
         
         default:
         {
-            printf ("SBLHwBootLoc = %s\n", "ERROR!");
+            fprintf (fPtr, "SBLHwBootLoc = %s\n", "ERROR!");
             break;
         }
 
     }
-
 
     switch (PtrSwCcrStatus->SBLHWStat)
     {
         case SBL_HW_STAT_CHECKSUM_PASS:
         {
-            printf ("SBLHWStat = %s\n", "SBL_HW_STAT_CHECKSUM_PASS");
+            fprintf (fPtr, "SBLHWStat = %s\n", "SBL_HW_STAT_CHECKSUM_PASS");
             break;
         }
         case SBL_HW_STAT_CHECKSUM_FAIL:
         {
-            printf ("SBLHWStat = %s\n", "SBL_HW_STAT_CHECKSUM_FAIL");
+            fprintf (fPtr, "SBLHWStat = %s\n", "SBL_HW_STAT_CHECKSUM_FAIL");
             break;
         }
         case SBL_HW_STAT_SIG_FAIL:
         {
-            printf ("SBLHWStat = %s\n", "SBL_HW_STAT_SIG_FAIL");
+            fprintf (fPtr, "SBLHWStat = %s\n", "SBL_HW_STAT_SIG_FAIL");
             break;
         }
         case SBL_HW_STAT_BOOT_LOADING:
         {
-            printf ("SBLHWStat = %s\n", "SBL_HW_STAT_BOOT_LOADING");
+            fprintf (fPtr, "SBLHWStat = %s\n", "SBL_HW_STAT_BOOT_LOADING");
             break;
         }
         case SBL_HW_STAT_BOOT_DISABLED:
         {
-            printf ("SBLHWStat = %s\n", "SBL_HW_STAT_BOOT_DISABLED");
+            fprintf (fPtr, "SBLHWStat = %s\n", "SBL_HW_STAT_BOOT_DISABLED");
             break;
         }
         
         default:
         {
-            printf ("SBLHWStat = %s\n", "ERROR!");
+            fprintf (fPtr, "SBLHWStat = %s\n", "ERROR!");
             break;
         }
 
     }
 
-    printf ("PCDValid = %d\n",     PtrSwCcrStatus->PCDValid);
+    fprintf (fPtr, "PCDValid = %d\n",     PtrSwCcrStatus->PCDValid);
     
     scrtnyLibOsiMemFree (PtrSwCcrStatus);
     
@@ -1867,11 +2514,21 @@ STATUS scrtnySwitchCCRStatus ()
     
 }
 
-STATUS scrtnySwitchPowerOnSense ()
+STATUS scrtnySwPowerOnSense (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	return (scrtnySwitchPowerOnSense (NULL));
+}
+
+STATUS scrtnySwitchPowerOnSense (SOSI_Test_FILE_HANDLE FilePtr)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     PTR_SCRUTINY_SWITCH_POWER_ON_SENSE        PtrSwPwrOnSense;
-    
+    SOSI_Test_FILE_HANDLE					fPtr = stdout;
+	
+	if (FilePtr != NULL)
+	{
+		fPtr = FilePtr;
+	}
 
     //start the specific code
     PtrSwPwrOnSense = (PTR_SCRUTINY_SWITCH_POWER_ON_SENSE) scrtnyLibOsiMemAlloc (sizeof(SCRUTINY_SWITCH_POWER_ON_SENSE));
@@ -1892,43 +2549,45 @@ STATUS scrtnySwitchPowerOnSense ()
         return STATUS_FAILED;
     }
     
+	fprintf (fPtr, "---- Power On Sense ----\n");
+	
     switch (PtrSwPwrOnSense->SBRCsSel)
     {
         case 0:
         {
-            printf ("SBRCsSel = %s\n", "SPI_FLASH_CS_N");
+            fprintf (fPtr, "SBRCsSel = %s\n", "SPI_FLASH_CS_N");
             break;        
         }
         case 1:
         {
-            printf ("SBRCsSel = %s\n", "SPI_CS_N[0]");
+            fprintf (fPtr, "SBRCsSel = %s\n", "SPI_CS_N[0]");
             break;        
         }
         default:
         {
-            printf ("SBRCsSel = %s\n", "ERROR!");
+            fprintf (fPtr, "SBRCsSel = %s\n", "ERROR!");
             break;
         }
 
     }
     
-    printf ("SBLDisable = %d\n", PtrSwPwrOnSense->SBLDisable);
+    fprintf (fPtr, "SBLDisable = %d\n", PtrSwPwrOnSense->SBLDisable);
     
     switch (PtrSwPwrOnSense->SdbBaudRate)
     {
         case SCRUTINY_BAUD_RATE_115200:
         {
-            printf ("SdbBaudRate = %s\n", "SCRUTINY_BAUD_RATE_115200");
+            fprintf (fPtr, "SdbBaudRate = %s\n", "SCRUTINY_BAUD_RATE_115200");
             break;
         }
         case SCRUTINY_BAUD_RATE_19200:
         {
-            printf ("SdbBaudRate = %s\n", "SCRUTINY_BAUD_RATE_19200");
+            fprintf (fPtr, "SdbBaudRate = %s\n", "SCRUTINY_BAUD_RATE_19200");
             break;
         }
         default:
         {
-            printf ("SdbBaudRate = %s\n", "ERROR!");
+            fprintf (fPtr, "SdbBaudRate = %s\n", "ERROR!");
             break;
         }
 
@@ -1938,38 +2597,38 @@ STATUS scrtnySwitchPowerOnSense ()
     {
         case SBL_HW_ENABLE_LANE_NUM_96:
         {
-            printf ("EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_96");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_96");
             break;
         }
         case SBL_HW_ENABLE_LANE_NUM_80:
         {
-            printf ("EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_80");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_80");
             break;
         }
         case SBL_HW_ENABLE_LANE_NUM_64:
         {
-            printf ("EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_64");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_64");
             break;
         }
         case SBL_HW_ENABLE_LANE_NUM_48:
         {
-            printf ("EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_48");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_48");
             break;
         }
         case SBL_HW_ENABLE_LANE_NUM_32:
         {
-            printf ("EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_32");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_32");
             break;
         }
         case SBL_HW_ENABLE_LANE_NUM_24:
         {
-            printf ("EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_24");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "SBL_HW_ENABLE_LANE_NUM_24");
             break;
         }
                 
         default:
         {
-            printf ("EnableLaneNumber = %s\n", "ERROR!");
+            fprintf (fPtr, "EnableLaneNumber = %s\n", "ERROR!");
             break;
         }
 
@@ -1979,17 +2638,17 @@ STATUS scrtnySwitchPowerOnSense ()
     {
         case PCI_DEVICE_LINK_SPEED_GEN_4:
         {
-            printf ("MaxLinkSpeed = %s\n", "PCI_DEVICE_LINK_SPEED_GEN_4");
+            fprintf (fPtr, "MaxLinkSpeed = %s\n", "PCI_DEVICE_LINK_SPEED_GEN_4");
             break;
         }
         case PCI_DEVICE_LINK_SPEED_GEN_3:
         {
-            printf ("MaxLinkSpeed = %s\n", "PCI_DEVICE_LINK_SPEED_GEN_3");
+            fprintf (fPtr, "MaxLinkSpeed = %s\n", "PCI_DEVICE_LINK_SPEED_GEN_3");
             break;
         }
         default:
         {
-            printf ("MaxLinkSpeed = %s\n", "ERROR!");
+            fprintf (fPtr, "MaxLinkSpeed = %s\n", "ERROR!");
             break;
         }
 
@@ -2002,7 +2661,55 @@ STATUS scrtnySwitchPowerOnSense ()
     
 } 
 
-STATUS scrtnySwitchRxEqStatus ()
+
+STATUS scrtnySwRxEqStatus (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		startPort, numberOfPort;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-startport", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				startPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -rxeq -startport <value> -num <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-num", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				numberOfPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -rxeq -startport <value> -num <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -rxeq -startport <value> -num <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	
+	return (scrtnySwitchRxEqStatus (startPort, numberOfPort));
+	
+}
+
+STATUS scrtnySwitchRxEqStatus (U32 StartPort, U32 NumberOfPort)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     PTR_SCRUTINY_SWITCH_PORT_RX_EQ_STATUS ptrPortRxEqStatus;
@@ -2018,14 +2725,30 @@ STATUS scrtnySwitchRxEqStatus ()
     }
 
     scrtnyLibOsiMemSet (ptrPortRxEqStatus, 0x00, sizeof(SCRUTINY_SWITCH_PORT_RX_EQ_STATUS));
-    printf("input the start port:");
-    //fflush(stdin);
-    scanf("%d",&startPort);
+	
+	if (StartPort == INVALID_PARAMETER)
+	{
+		printf("input the start port:");
+		//fflush(stdin);
+		scanf("%d",&startPort);
+	}
+	else 
+	{
+		startPort = StartPort;
+	}
     
-    printf("input the number of port:");                    
-    //fflush(stdin);
-    scanf("%d",&numberOfPort);
-    printf("StartPort = %x, NumberOfPort = %x\n",startPort, numberOfPort);
+	if (NumberOfPort == INVALID_PARAMETER)
+	{
+		printf("input the number of port:");                    
+		//fflush(stdin);
+		scanf("%d",&numberOfPort);
+	}
+	else
+	{
+		numberOfPort = NumberOfPort;
+	}
+	
+    //printf("StartPort = %x, NumberOfPort = %x\n",startPort, numberOfPort);
     
     libStatus = ScrutinySwitchRxEqStatus ( &gSelectDeviceHandle, startPort, numberOfPort, ptrPortRxEqStatus);
     if (libStatus != SCRUTINY_STATUS_SUCCESS)
@@ -2058,8 +2781,54 @@ STATUS scrtnySwitchRxEqStatus ()
     
 }
 
+STATUS scrtnySwTxCoeff (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		startPort, numberOfPort;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-startport", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				startPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -txcoeff -startport <value> -num <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-num", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				numberOfPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -txcoeff -startport <value> -num <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -txcoeff -startport <value> -num <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	
+	return (scrtnySwitchTxCoeff (startPort, numberOfPort));
+	
+}
 
-STATUS scrtnySwitchTxCoeff ()
+STATUS scrtnySwitchTxCoeff (U32 StartPort, U32 NumberOfPort)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     PTR_SCRUTINY_SWITCH_PORT_TX_COEFF     ptrPortTxCoeff;
@@ -2075,13 +2844,29 @@ STATUS scrtnySwitchTxCoeff ()
     }
 
     scrtnyLibOsiMemSet (ptrPortTxCoeff, 0x00, sizeof(SCRUTINY_SWITCH_PORT_TX_COEFF));
-    printf("input the start port:");
-    //fflush(stdin);
-    scanf("%d",&startPort);
+	
+	if (StartPort == INVALID_PARAMETER)
+	{
+		printf("input the start port:");
+		//fflush(stdin);
+		scanf("%d",&startPort);
+	}
+	else 
+	{
+		startPort = StartPort;
+	}
     
-    printf("input the number of port:");                    
-    //fflush(stdin);
-    scanf("%d",&numberOfPort);
+	if (NumberOfPort == INVALID_PARAMETER)
+	{
+		printf("input the number of port:");                    
+		//fflush(stdin);
+		scanf("%d",&numberOfPort);
+	}
+	else 
+	{
+		numberOfPort = NumberOfPort;
+	}
+	
     printf("StartPort = %x, NumberOfPort = %x\n",startPort, numberOfPort);
     
     libStatus = ScrutinySwitchTxCoeff ( &gSelectDeviceHandle, startPort, numberOfPort, ptrPortTxCoeff);
@@ -2112,7 +2897,66 @@ STATUS scrtnySwitchTxCoeff ()
 }
 
 
-STATUS scrtnySwitchHwEye ()
+STATUS scrtnySwHwEye (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		startPort, numberOfPort, timeout;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-startport", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				startPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -hweye -startport <value> -num <value> -to <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-num", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				numberOfPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -hweye -startport <value> -num <value> -to <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-to", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				timeout = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -hweye -startport <value> -num <value> -to <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -hweye -startport <value> -num <value> -to <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	
+	return (scrtnySwitchHwEye (startPort, numberOfPort, timeout));
+}
+
+STATUS scrtnySwitchHwEye (U32 StartPort, U32 NumberOfPort, U32 Timeout)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     PTR_SCRUTINY_SWITCH_PORT_HW_EYE       ptrPortHwEyeStatus;
@@ -2131,18 +2975,40 @@ STATUS scrtnySwitchHwEye ()
     }
 
     scrtnyLibOsiMemSet (ptrPortHwEyeStatus, 0x00, sizeof(SCRUTINY_SWITCH_PORT_HW_EYE));
-    printf("input the start port:");
-    //fflush(stdin);
-    scanf("%d",&startPort);
+	if (StartPort == INVALID_PARAMETER)
+	{
+		printf("input the start port:");
+		//fflush(stdin);
+		scanf("%d",&startPort);
+	}
+	else
+	{
+		startPort = StartPort;
+	}
     
-    printf("input the number of port:");                    
-    //fflush(stdin);
-    scanf("%d",&numberOfPort);
+	if (NumberOfPort == INVALID_PARAMETER)
+	{
+		printf("input the number of port:");                    
+		//fflush(stdin);
+		scanf("%d",&numberOfPort);
+	}
+	else 
+	{
+		numberOfPort = NumberOfPort;
+	}
     
-    printf("input the timeout:");                    
-    //fflush(stdin);
-    scanf("%d",&timeout);
-    printf("StartPort = %x, NumberOfPort = %x\n",startPort, numberOfPort);
+	if (Timeout == INVALID_PARAMETER)
+	{
+		printf("input the timeout:");                    
+		//fflush(stdin);
+		scanf("%d",&timeout);
+	}
+	else
+	{
+		timeout = Timeout;
+	}
+	
+    printf("StartPort = %x, NumberOfPort = %x, timeout = %d\n",startPort, numberOfPort, timeout);
     
     libStatus = ScrutinySwitchHardwareEyeStart ( &gSelectDeviceHandle, startPort, numberOfPort, ptrPortHwEyeStatus);
 
@@ -2187,19 +3053,79 @@ STATUS scrtnySwitchHwEye ()
     
 }
 
-STATUS scrtnySwitchSoftEye ()
+STATUS scrtnySwSoftEye (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		startPort, numberOfPort;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-startport", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				startPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -sweye -startport <value> -num <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-num", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				numberOfPort = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -sweye -startport <value> -num <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -sweye -startport <value> -num <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	
+	return (scrtnySwitchSoftEye (startPort, numberOfPort));
+}
+
+STATUS scrtnySwitchSoftEye (U32 StartPort, U32 NumberOfPort)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     int                                   startPort;
     int                                   numberOfPort;
-
-    printf("input the start port:");
-    //fflush(stdin);
-    scanf("%d",&startPort);
+	
+	if (StartPort == INVALID_PARAMETER)
+	{
+		printf("input the start port:");
+		//fflush(stdin);
+		scanf("%d",&startPort);
+	} 
+	else
+	{
+		startPort = StartPort;
+	}
     
-    printf("input the number of port:");                    
-    //fflush(stdin);
-    scanf("%d",&numberOfPort);
+	if (NumberOfPort == INVALID_PARAMETER)
+	{
+		printf("input the number of port:");                    
+		//fflush(stdin);
+		scanf("%d",&numberOfPort);
+	}
+	else 
+	{
+		numberOfPort = NumberOfPort;
+	}
     
 
     printf("StartPort = %x, NumberOfPort = %x\n",startPort, numberOfPort);
@@ -2215,6 +3141,62 @@ STATUS scrtnySwitchSoftEye ()
 
 }
 
+STATUS scrtnySwMemoryRead (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		address, count;
+	
+	address = count = INVALID_PARAMETER;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-addr", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				address = scrtnyLibOsiStrToHex ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -memread -addr <value> -size <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-size", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				count = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -memread -addr <value> -size <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -memread -addr <value> -size <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	if ((address == INVALID_PARAMETER) || (count == INVALID_PARAMETER))
+	{
+		printf("Both -addr and -size need to be assigned with a valid value!\n");
+		printf ("scrutinyLibTest -i <index> -memread -addr <value> -size <value>\n");
+		return (STATUS_FAILED);
+	}
+	
+	return (scrtnySwitchMemoryRead (address, count));
+	
+}
+
+
 STATUS scrtnySwitchMemoryRead (U32 Address, U32 SizeInBytes)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
@@ -2222,7 +3204,7 @@ STATUS scrtnySwitchMemoryRead (U32 Address, U32 SizeInBytes)
     U32    readBytes;
     PU8    ptrBuffer;
     
-    if (Address == 0xFFFFFFFF)
+    if (Address == INVALID_PARAMETER)
     {
         /* interactive mode */
         printf("Input Memory Address: 0x");
@@ -2259,6 +3241,101 @@ STATUS scrtnySwitchMemoryRead (U32 Address, U32 SizeInBytes)
     return (STATUS_SUCCESS);
 }
 
+
+STATUS scrtnySwMemoryWrite (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		address, count, index;
+	PU8		ptrBuffer;
+	
+	address = count = INVALID_PARAMETER;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-addr", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				address = scrtnyLibOsiStrToHex ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -memwrite -addr <value> -size <value> -val <hex array ...> \n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-size", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				count = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -memwrite -addr <value> -size <value> -val <hex array ...> \n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-val", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			if (count == INVALID_PARAMETER)
+			{
+				printf("Need -size parameter before the written values!\n");
+				printf ("scrutinyLibTest -i <index> -memwrite -addr <value> -size <value> -val <hex array ...> \n");
+				return (STATUS_FAILED);
+			}
+			
+			ptrBuffer = scrtnyLibOsiMemAlloc (count);
+			if (ptrBuffer == NULL)
+			{
+				printf("Unable to allocate memory!\n");
+				return (STATUS_FAILED);
+			}
+			
+			scrtnyLibOsiMemSet (ptrBuffer, 0, count);
+			index = 0;
+			
+			while (index < count)
+			{
+				(*PtrCurrentIndex) += 1;
+				if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+				{
+					ptrBuffer[index] = scrtnyLibOsiStrToHex ((char *)PtrArguments[(*PtrCurrentIndex)]);
+				}
+				else 
+				{
+					scrtnyLibOsiMemFree (ptrBuffer);
+					printf ("scrutinyLibTest -i <index> -memwrite -addr <value> -size <value> -val <hex array ...> \n");
+					return (STATUS_FAILED);
+				}
+				index++;
+			}
+			
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -memwrite -addr <value> -size <value> -val <hex array ...> \n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+	if ((address == INVALID_PARAMETER) || (count == INVALID_PARAMETER))
+	{
+		printf("Both -addr and -size need to be assigned with a valid value!\n");
+		printf ("scrutinyLibTest -i <index> -memwrite -addr <value> -size <value> -val <hex array ...> \n");
+		return (STATUS_FAILED);
+	}
+	
+	scrtnySwitchMemoryWrite (address, ptrBuffer, count);
+	scrtnyLibOsiMemFree (ptrBuffer);
+	return (STATUS_SUCCESS);
+}
+
+
 STATUS scrtnySwitchMemoryWrite (U32 Address, PU8 PtrValue, U32 SizeInBytes)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
@@ -2267,7 +3344,7 @@ STATUS scrtnySwitchMemoryWrite (U32 Address, PU8 PtrValue, U32 SizeInBytes)
     PU8    ptrBuffer;
     U32    index;
     
-    if (Address == 0xFFFFFFFF)
+    if (Address == INVALID_PARAMETER)
     {
         /* interactive mode */
         printf("Input Memory Address: 0x");
@@ -2306,19 +3383,77 @@ STATUS scrtnySwitchMemoryWrite (U32 Address, PU8 PtrValue, U32 SizeInBytes)
     if (libStatus != SCRUTINY_STATUS_SUCCESS)
     {
         printf ("%s failed with status %x\n", __func__, libStatus);
-        if (Address == 0xFFFFFFFF)
+        if (Address == INVALID_PARAMETER)
         {
             scrtnyLibOsiMemFree (ptrBuffer);
         }
         return (STATUS_FAILED);
     }
     
-    HexDump(stdout, (U8 *) ptrBuffer, writeBytes);
-    
-    if (Address == 0xFFFFFFFF)
+    if (Address == INVALID_PARAMETER)
     {
         scrtnyLibOsiMemFree (ptrBuffer);
     }
+    return (STATUS_SUCCESS);
+}
+
+STATUS scrtnyGetConfigPage (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+    PU8 ptrPageBuffer = NULL;
+    U32 pageLength = 0;
+	U32 pageNum, region;
+	
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-pagenum", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				pageNum = scrtnyLibOsiStrToHex ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -getconfigpage -pagenum <HexPageNum> -region <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-region", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+			{
+				region = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -getconfigpage -pagenum <HexPageNum> -region <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -getconfigpage -pagenum <HexPageNum> -region <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	
+    
+    libStatus = ScrutinySwitchGetConfigPage (&gSelectDeviceHandle, pageNum, region, &ptrPageBuffer, &pageLength);
+    if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("%s failed with status %x\n", __func__, libStatus);
+        return (STATUS_FAILED);
+    }
+    
+    HexDump(stdout, (U8 *) ptrPageBuffer, pageLength);
+    
+    scrtnyLibOsiMemFree (ptrPageBuffer);
     return (STATUS_SUCCESS);
 }
 
@@ -2342,7 +3477,7 @@ STATUS scrtnySwitchGetConfigPage ()
     return (STATUS_SUCCESS);
 }
 
-STATUS scrtnySwitchResetDevice ()
+STATUS scrtnySwitchResetDevice (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     libStatus = ScrutinyResetDevice (&gSelectDeviceHandle);
@@ -2450,6 +3585,112 @@ STATUS scrtnySwitchAladin ()
     
 }
 
+
+STATUS scrtnyScsiPasshrough (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	SCRUTINY_SCSI_PASSTHROUGH        scsiPassthrough;
+    SCRUTINY_STATUS                  status = SCRUTINY_STATUS_SUCCESS;
+	U32 cdbLen, index = 0;
+	U8  cdb[32];   // only support max 32 bytes scsi cdb
+	U32	responseLen = 1024;
+	PU8	ptrResponseBuffer = NULL;
+	U32	direction;
+	
+	scrtnyLibOsiMemSet (&cdb[0], 0, sizeof (cdb));
+	(*PtrCurrentIndex) += 1;
+	
+	// get cdb length
+	if ((*PtrCurrentIndex >= ArgumentCount) || (scrtnyLibOsiStringCompare ("-cdblen", PtrArguments[(*PtrCurrentIndex)]) != 0))
+	{
+		printf ("scrutinyLibTest -i <index> -scsipassthru -cdblen <LenInBytes> -rw <0-3> -cdb <xx xx ...>\n");
+		return (STATUS_FAILED);
+	}
+	else 
+	{
+		(*PtrCurrentIndex) += 1;
+		if (PtrArguments[(*PtrCurrentIndex)][0] != '-')
+		{
+			cdbLen = atoi (PtrArguments[(*PtrCurrentIndex)]);
+			if (cdbLen >= 32)
+			{
+				printf("max supported cdb length is 32 bytes!\n");
+				return (STATUS_FAILED);
+			}
+		}
+	}
+	
+	// get direction
+	(*PtrCurrentIndex) += 1;
+	if ((*PtrCurrentIndex >= ArgumentCount) || (scrtnyLibOsiStringCompare ("-rw", PtrArguments[(*PtrCurrentIndex)]) != 0))
+	{
+		printf ("scrutinyLibTest -i <index> -scsipassthru -cdblen <LenInBytes> -rw <0-3> -cdb <xx xx ...>\n");
+		return (STATUS_FAILED);
+	}
+	else 
+	{
+		(*PtrCurrentIndex) += 1;
+		direction = atoi (PtrArguments[(*PtrCurrentIndex)]);
+		if ((direction < 0) || (direction > 3))
+		{
+			printf("the supported value for -rw is between 0 to 3\n");
+			return (STATUS_FAILED);
+		}
+	}
+	
+	// get cdb 
+	(*PtrCurrentIndex) += 1;
+	
+	if ((*PtrCurrentIndex >= ArgumentCount) || (scrtnyLibOsiStringCompare ("-cdb", PtrArguments[(*PtrCurrentIndex)]) != 0))
+	{
+		printf ("scrutinyLibTest -i <index> -scsipassthru -cdblen <LenInBytes> -rw <0-3> -cdb <xx xx ...>\n");
+		return (STATUS_FAILED);
+	}
+	else 
+	{
+		while (((*PtrCurrentIndex + 1) < ArgumentCount) && (index < cdbLen))
+		{
+			(*PtrCurrentIndex) += 1;
+			cdb[index] = scrtnyLibOsiStrToHex ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			index++;
+		}
+	}
+	
+	if ((*PtrCurrentIndex + 1) != ArgumentCount || (index != cdbLen))
+	{
+		
+		printf("Wrong CDB or CDB length provided!\n");
+		return (STATUS_FAILED);
+	}
+	
+    scrtnyLibOsiMemSet (&scsiPassthrough, 0, sizeof (SCRUTINY_SCSI_PASSTHROUGH));
+	ptrResponseBuffer = scrtnyLibOsiMemAlloc (responseLen);
+	if (ptrResponseBuffer == NULL)
+	{
+		printf("Unable to allocate %d bytes response buffer!\n", responseLen);
+		return (STATUS_FAILED);
+	}
+	scrtnyLibOsiMemSet (ptrResponseBuffer, 0xFF, responseLen);
+	
+	scsiPassthrough.Size = sizeof (SCRUTINY_SCSI_PASSTHROUGH);
+	scrtnyLibOsiMemCopy (&scsiPassthrough.Cdb[0], &cdb[0], cdbLen);
+    scsiPassthrough.CdbLength = cdbLen;
+    scsiPassthrough.DataDirection = direction;
+    scsiPassthrough.DataBufferLength = responseLen;
+    scsiPassthrough.PtrDataBuffer = ptrResponseBuffer;
+	
+	status = ScrutinySwitchScsiPassthrough (&gSelectDeviceHandle, &scsiPassthrough);
+
+    if (status || scsiPassthrough.ScsiStatus)
+    {
+        printf ("SCSI passthrough failed. status (%x, %x).", status, scsiPassthrough.ScsiStatus);
+        return (STATUS_FAILED);
+    }
+	
+	printf("scsi command [%x] Response Data:\n", cdb[0]);
+	HexDump(stdout, ptrResponseBuffer, scsiPassthrough.DataBufferLength);
+    return (STATUS_SUCCESS);
+}
+
 STATUS scrtnySwitchScsiPassthrough ()
 {
 
@@ -2467,7 +3708,6 @@ STATUS scrtnySwitchScsiPassthrough ()
     scsiPassthrough.DataDirection = DIRECTION_READ;
     scsiPassthrough.DataBufferLength = sizeof (SCRUTINY_SCSI_INQUIRY_DATA);
     scsiPassthrough.PtrDataBuffer = &inquiryData;
-    scsiPassthrough.DataDirection = DIRECTION_READ;
 
     status = ScrutinySwitchScsiPassthrough (&gSelectDeviceHandle, &scsiPassthrough);
 
@@ -2518,11 +3758,11 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
                 break;
                 
             case 2:  
-                scrtnySwitchGetTemperature();
+                scrtnySwitchGetTemperature (NULL);
                 break;
     
             case 3:
-                scrtnySwitchGetTrace ();
+                scrtnySwitchGetTrace (0, NULL, NULL);
                 break;
                 
             case 4:
@@ -2534,23 +3774,23 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
                 break;
                 
             case 6:
-                scrtnyGetSwitchLogs();
+                scrtnyGetSwitchLogs(0, NULL, NULL);
                 break;
             
             case 7:
-                scrtnySwitchGetHealth();
+                scrtnySwitchGetHealth (0, NULL, NULL);
                 break;
                 
             case 8:
-                scrtnySwitchHealthCheck ();
+                scrtnySwitchHealthCheck (0, NULL, NULL);
                 break;  
                 
             case 9:
-                scrtnySwitchCounters();
+                scrtnySwitchCounters (NULL);
                 break;
                 
             case 10:
-                scrtnySwitchPortProperties ();
+                scrtnySwitchPortProperties (NULL);
                 break;
             
             case 11:
@@ -2570,43 +3810,43 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
                 break; 
             
             case 15:
-                scrtnySwitchGetLaneMarginCapacities ();  // TODO: add parameters to support command line mode
+                scrtnySwitchGetLaneMarginCapacities (INVALID_PARAMETER, INVALID_PARAMETER);  // TODO: add parameters to support command line mode
                 break;
             
             case 16:
-                scrtnySwitchPerformLaneMargin ();   //TODO: add parameters to support command line mode
+                scrtnySwitchPerformLaneMargin (INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER); 
                 break;
             
             case 17:
-                scrtnySwitchPowerOnSense ();
+                scrtnySwitchPowerOnSense (NULL);
                 break;
                 
             case 18:
-                scrtnySwitchCCRStatus ();
+                scrtnySwitchCCRStatus (NULL);
                 break;
             
             case 19: 
-                scrtnySwitchRxEqStatus ();
+                scrtnySwitchRxEqStatus (INVALID_PARAMETER, INVALID_PARAMETER);
                 break;
                 
             case 20:
-                scrtnySwitchTxCoeff ();
+                scrtnySwitchTxCoeff (INVALID_PARAMETER, INVALID_PARAMETER);
                 break;
                 
             case 21:
-                scrtnySwitchHwEye ();
+                scrtnySwitchHwEye (INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER);
                 break;
                 
             case 22:
-                scrtnySwitchSoftEye ();
+                scrtnySwitchSoftEye (INVALID_PARAMETER, INVALID_PARAMETER);
                 break;
                 
             case 23:
-                scrtnySwitchMemoryRead (0xFFFFFFFF, 0);
+                scrtnySwitchMemoryRead (INVALID_PARAMETER, 0);
                 break;
                 
             case 24:
-                scrtnySwitchMemoryWrite(0xFFFFFFFF, NULL, 0);
+                scrtnySwitchMemoryWrite(INVALID_PARAMETER, NULL, 0);
                 break;
                 
             case 25:
@@ -2614,7 +3854,7 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
                 break;
                 
             case 26:
-                scrtnySwitchResetDevice ();
+                scrtnySwitchResetDevice (0, NULL, NULL);
                 break;
 			
 			case 27:
@@ -2686,7 +3926,55 @@ STATUS scrtnySwitchDetails (__IN__ U32 Index, __IN__ PTR_SCRUTINY_DEVICE_INFO Pt
 }
 
 
-STATUS scrtnyGetSwitchLogs()
+STATUS scrtnyGetAllSwitchLogs (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	SOSI_Test_FILE_HANDLE fPtr;
+#if defined(OS_LINUX)
+        char *folderName = "switchlogs/misc.txt";
+#elif defined(OS_WINDOWS)
+        char *folderName = "switchlogs\\misc.txt";
+#endif 
+
+    char currentDirectoryPath[512] = { '\0' };
+
+    if (scrtnyOtcGetCurrentDirectory(currentDirectoryPath) != STATUS_SUCCESS)
+    {
+        printf("Unable to get current working directory");
+
+        return (STATUS_FAILED);
+    }
+	
+    strcat(currentDirectoryPath, folderName);
+	
+	scrtnyGetSwitchLogs (0, NULL, NULL);
+	
+	fPtr = scrtnyLibFileOpen (currentDirectoryPath, "wb");
+	if (!fPtr)
+    {
+        printf("Unable to Open Output file %s!\n", currentDirectoryPath);
+        return (STATUS_FAILED);
+    }
+	
+	scrtnySwitchCCRStatus (fPtr);
+	fprintf(fPtr, "\n\n");
+	
+	scrtnySwitchPowerOnSense (fPtr);
+	fprintf(fPtr, "\n\n");
+	
+	scrtnySwitchGetTemperature (fPtr);
+	fprintf(fPtr, "\n\n");
+	
+	scrtnySwitchPortProperties (fPtr);
+	fprintf(fPtr, "\n\n");
+	
+	scrtnySwitchCounters (fPtr);
+	
+	scrtnyLibFileClose (fPtr);
+	
+	return (STATUS_SUCCESS);
+}
+
+STATUS scrtnyGetSwitchLogs (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
 #if defined(OS_LINUX)
@@ -2717,12 +4005,26 @@ STATUS scrtnyGetSwitchLogs()
     return STATUS_SUCCESS;
 }
 
-STATUS scrtnySwitchCounters ()
+
+STATUS scrtnySwCounters (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	return (scrtnySwitchCounters (NULL));
+}
+
+STATUS scrtnySwitchCounters (SOSI_Test_FILE_HANDLE	FilePtr)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     SCRUTINY_SWITCH_ERROR_STATISTICS    errorStatistic;
     U32     portNum;
+	SOSI_Test_FILE_HANDLE	fPtr = stdout;
+	
+	if (FilePtr != NULL)
+	{
+		fPtr = FilePtr;
+	}
     
+	fprintf(fPtr, "---- PCIe Port Error Statistic ----\n\n");
+	
     for (portNum = 0; portNum < 128; portNum++)
     {
         libStatus = ScrutinySwitchGetPciPortErrorStatistics (&gSelectDeviceHandle, portNum, &errorStatistic);
@@ -2733,49 +4035,49 @@ STATUS scrtnySwitchCounters ()
             printf("ScrutinySwitchGetPciPortErrorStatistics test failed with status %x on Port %d!!!\n", libStatus, portNum);
             continue;
         }
+		
+        fprintf (fPtr, "Port %d error statistic:\n", portNum);
+        fprintf (fPtr, "    BadTLPErrors:               %d\n", errorStatistic.ErrorCounters.BadTLPErrors);
+        fprintf (fPtr, "    BadDLLPErrors:              %d\n", errorStatistic.ErrorCounters.BadDLLPErrors);
+        fprintf (fPtr, "    PortReceiverErrors:         %d\n", errorStatistic.ErrorCounters.PortReceiverErrors);
+        fprintf (fPtr, "    RecoveryDiagnosticsErrors:  %d\n", errorStatistic.ErrorCounters.RecoveryDiagnosticsErrors);
+        fprintf (fPtr, "    LinkDownCount:              %d\n", errorStatistic.ErrorCounters.LinkDownCount);
+        fprintf (fPtr, "    LinkSpeed:                  %d\n", errorStatistic.ErrorCounters.LinkSpeed);
         
-        printf("Port %d error statistic:\n", portNum);
-        printf("    BadTLPErrors:               %d\n", errorStatistic.ErrorCounters.BadTLPErrors);
-        printf("    BadDLLPErrors:              %d\n", errorStatistic.ErrorCounters.BadDLLPErrors);
-        printf("    PortReceiverErrors:         %d\n", errorStatistic.ErrorCounters.PortReceiverErrors);
-        printf("    RecoveryDiagnosticsErrors:  %d\n", errorStatistic.ErrorCounters.RecoveryDiagnosticsErrors);
-        printf("    LinkDownCount:              %d\n", errorStatistic.ErrorCounters.LinkDownCount);
-        printf("    LinkSpeed:                  %d\n", errorStatistic.ErrorCounters.LinkSpeed);
+        fprintf (fPtr, "\nPort %d Advanced Error Status:\n", portNum);
+        fprintf (fPtr, "  Error Status:\n");
+        fprintf (fPtr, "    CorrectableErrorDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.CorrectableErrorDetected) ? 'Y' : 'N');
+        fprintf (fPtr, "    NonFatalErrorDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.NonFatalErrorDetected) ? 'Y' : 'N');
+        fprintf (fPtr, "    FatalErrorDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.FatalErrorDetected) ? 'Y' : 'N');
+        fprintf (fPtr, "    UnsupportedRequestDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.UnsupportedRequestDetected) ? 'Y' : 'N');
         
-        printf("\nPort %d Advanced Error Status:\n", portNum);
-        printf("  Error Status:\n");
-        printf("    CorrectableErrorDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.CorrectableErrorDetected) ? 'Y' : 'N');
-        printf("    NonFatalErrorDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.NonFatalErrorDetected) ? 'Y' : 'N');
-        printf("    FatalErrorDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.FatalErrorDetected) ? 'Y' : 'N');
-        printf("    UnsupportedRequestDetected: %c\n", (errorStatistic.AdvancedErrorStatus.ErrorStatus.UnsupportedRequestDetected) ? 'Y' : 'N');
-        
-        printf("\n\n  Uncorrectable:\n");
-        printf("    DataLinkProtocolError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.DataLinkProtocolError) ? 'Y' : 'N');
-        printf("    SurpriseDownError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.SurpriseDownError) ? 'Y' : 'N');
-        printf("    PoisedTLPStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.PoisedTLPStatus) ? 'Y' : 'N');
-        printf("    FlowControlProtocolError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.FlowControlProtocolError) ? 'Y' : 'N');
-        printf("    CompletionTimeout: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.CompletionTimeout) ? 'Y' : 'N');
-        printf("    CompleterAbortStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.CompleterAbortStatus) ? 'Y' : 'N');
-        printf("    UnexpectedCompletionStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.UnexpectedCompletionStatus) ? 'Y' : 'N');
-        printf("    ReceiverOverflowStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.ReceiverOverflowStatus) ? 'Y' : 'N');
-        printf("    MalformedTLPStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.MalformedTLPStatus) ? 'Y' : 'N');
-        printf("    ECRCError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.ECRCError) ? 'Y' : 'N');
-        printf("    UnsupportedRequestError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.UnsupportedRequestError) ? 'Y' : 'N');
-        printf("    ACSViolationStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.ACSViolationStatus) ? 'Y' : 'N');
-        printf("    UncorrectableInternalError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.UncorrectableInternalError) ? 'Y' : 'N');
+        fprintf (fPtr, "\n\n  Uncorrectable:\n");
+        fprintf (fPtr, "    DataLinkProtocolError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.DataLinkProtocolError) ? 'Y' : 'N');
+        fprintf (fPtr, "    SurpriseDownError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.SurpriseDownError) ? 'Y' : 'N');
+        fprintf (fPtr, "    PoisedTLPStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.PoisedTLPStatus) ? 'Y' : 'N');
+        fprintf (fPtr, "    FlowControlProtocolError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.FlowControlProtocolError) ? 'Y' : 'N');
+        fprintf (fPtr, "    CompletionTimeout: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.CompletionTimeout) ? 'Y' : 'N');
+        fprintf (fPtr, "    CompleterAbortStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.CompleterAbortStatus) ? 'Y' : 'N');
+        fprintf (fPtr, "    UnexpectedCompletionStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.UnexpectedCompletionStatus) ? 'Y' : 'N');
+        fprintf (fPtr, "    ReceiverOverflowStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.ReceiverOverflowStatus) ? 'Y' : 'N');
+        fprintf (fPtr, "    MalformedTLPStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.MalformedTLPStatus) ? 'Y' : 'N');
+        fprintf (fPtr, "    ECRCError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.ECRCError) ? 'Y' : 'N');
+        fprintf (fPtr, "    UnsupportedRequestError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.UnsupportedRequestError) ? 'Y' : 'N');
+        fprintf (fPtr, "    ACSViolationStatus: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.ACSViolationStatus) ? 'Y' : 'N');
+        fprintf (fPtr, "    UncorrectableInternalError: %c\n", (errorStatistic.AdvancedErrorStatus.Uncorrectable.Bits.UncorrectableInternalError) ? 'Y' : 'N');
         
         
-        printf("\n\n  Correctable:\n");
-        printf("    ReceiverError: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.ReceiverError) ? 'Y' : 'N');
-        printf("    BadTLP: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.BadTLP) ? 'Y' : 'N');
-        printf("    BadDLLP: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.BadDLLP) ? 'Y' : 'N');
-        printf("    ReplayNumRollOver: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.ReplayNumRollOver) ? 'Y' : 'N');
-        printf("    ReplayTimerTimeout: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.ReplayTimerTimeout) ? 'Y' : 'N');
-        printf("    AdvisoryNonFatalError: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.AdvisoryNonFatalError) ? 'Y' : 'N');
-        printf("    CorrectedInternalError: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.CorrectedInternalError) ? 'Y' : 'N');
-        printf("    HeaderLogOverflow: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.HeaderLogOverflow) ? 'Y' : 'N');
+        fprintf (fPtr, "\n\n  Correctable:\n");
+        fprintf (fPtr, "    ReceiverError: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.ReceiverError) ? 'Y' : 'N');
+        fprintf (fPtr, "    BadTLP: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.BadTLP) ? 'Y' : 'N');
+        fprintf (fPtr, "    BadDLLP: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.BadDLLP) ? 'Y' : 'N');
+        fprintf (fPtr, "    ReplayNumRollOver: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.ReplayNumRollOver) ? 'Y' : 'N');
+        fprintf (fPtr, "    ReplayTimerTimeout: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.ReplayTimerTimeout) ? 'Y' : 'N');
+        fprintf (fPtr, "    AdvisoryNonFatalError: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.AdvisoryNonFatalError) ? 'Y' : 'N');
+        fprintf (fPtr, "    CorrectedInternalError: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.CorrectedInternalError) ? 'Y' : 'N');
+        fprintf (fPtr, "    HeaderLogOverflow: %c\n", (errorStatistic.AdvancedErrorStatus.Correctable.Bits.HeaderLogOverflow) ? 'Y' : 'N');
         
-        printf("\n\n");
+        fprintf (fPtr, "\n\n");
     }
     
     return (STATUS_SUCCESS);
@@ -2844,7 +4146,7 @@ STATUS scrtnyOtc ()
 
 
 
-STATUS scrtnySwitchGetHealth()
+STATUS scrtnySwitchGetHealth (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     PTR_SCRUTINY_SWITCH_HEALTH  ptrSwHealth;
@@ -2921,11 +4223,11 @@ STATUS scrtnySwitchGetHealth()
 }
 
 
-STATUS scrtnySwitchHealthCheck ()
+STATUS scrtnySwitchHealthCheck (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
 {
     SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
     U32             errCode[SCRUTINY_MAX_SWITCH_HEALTH_ERROR_DWORD];
-    char            currentDirectoryPath[512] = { '\0'};
+    char            currentDirectoryPath[512] = { '\0' };
     U32             i;
 
     if (scrtnyOtcGetCurrentDirectory (currentDirectoryPath) != STATUS_SUCCESS)

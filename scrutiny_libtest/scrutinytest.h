@@ -39,6 +39,7 @@
 #define SCRUTINY_VERSION_REVISION       0
 #define SCRUTINY_VERSION_DEV            0
 
+#define INVALID_PARAMETER				(0xFFFFFFFF)
 /*
  * In scsi passthru reply we recieves bit fields as a output that is in the big endian format,
  * so the structure's big endianess has been changed to recieve correct data.
@@ -120,7 +121,8 @@ typedef enum __STATUS
     STATUS_IGNORE,
     STATUS_ABORT,
     STATUS_MEM_FAILED,
-    STATUS_INVALID_PORT
+    STATUS_INVALID_PORT,
+	STATUS_CONTINUE
 
 } STATUS;
 
@@ -254,6 +256,20 @@ typedef struct _INVADER_DIAG_BUFFER_PARAMS
 }INVADER_DIAG_BUFFER_PARAMS, *PTR_INVADER_DIAG_BUFFER_PARAMS;
 
 
+typedef struct __SCRUTINY_LIBTEST_CLI_GLOBALCMDS
+{
+    const char    *PtrOption;
+    STATUS  	  (*FptrOptionFunc) (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+} SCRUTINY_LIBTEST_CLI_GLOBALCMDS;
+
+
+typedef struct __SCRUTINY_LIBTEST_CLI_DEVICECMDS
+{
+    const char    *PtrOption;
+    STATUS  	  (*FptrOptionFunc) (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+} SCRUTINY_LIBTEST_CLI_DEVICECMDS;
+
+
 void scrtnyPrintBanner();
 STATUS scrutinyTest();
 STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo);
@@ -261,43 +277,60 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo);
 STATUS scrtnyControllerDetails (__IN__ U8 Index, __IN__ PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo);
 STATUS scrtnyExpanderDetails (__IN__ U32 Index, __IN__ PTR_SCRUTINY_DEVICE_INFO  PtrDeviceInfo);
 STATUS scrtnySwitchDetails (__IN__ U32 Index, __IN__ PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo);
-
+STATUS scrtnySwFwCli (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnySwitchFwCli (PU8 PtrCmdLine);
-STATUS scrtnySwitchGetTemperature ();
-STATUS scrtnySwitchGetTrace ();
+STATUS scrtnySwGetTemperature (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchGetTemperature (SOSI_Test_FILE_HANDLE FilePtr);
+STATUS scrtnySwitchGetTrace (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnySwitchHealthLogs (int LogType);
-STATUS scrtnyGetCoreDump (int InputOperation);
-STATUS scrtnyGetSwitchLogs();
-STATUS scrtnySwitchGetHealth ();
-STATUS scrtnySwitchHealthCheck ();
-STATUS scrtnySwitchCounters ();
-STATUS scrtnySwitchPortProperties ();
+STATUS scrtnyCoreDump (int InputOperation);
+STATUS scrtnyGetSwitchLogs(U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchGetHealth (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchHealthCheck (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwCounters (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchCounters (SOSI_Test_FILE_HANDLE	FilePtr);
+
+STATUS scrtnySwPortProperties (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchPortProperties (SOSI_Test_FILE_HANDLE  FilePtr);
 STATUS scrtnySwitchUploadSbr ();  
 STATUS scrtnySwitchEraseSbr ();
 STATUS scrtnySwitchDownloadSbr ();
 STATUS scrtnySwitchSbrInfo ();
 
-STATUS scrtnySwitchPortProperties ();
-STATUS scrtnySwitchPerformLaneMargin ();
-STATUS scrtnySwitchPowerOnSense ();
-STATUS scrtnySwitchCCRStatus ();
+STATUS scrtnySwGetLaneMarginCapacities (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchGetLaneMarginCapacities(U32 Port, U32 Lanes);
 
-STATUS scrtnySwitchRxEqStatus ();
-STATUS scrtnySwitchTxCoeff ();
-STATUS scrtnySwitchHwEye ();
-STATUS scrtnySwitchSoftEye ();
+STATUS scrtnySwPerformLaneMargin (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchPerformLaneMargin (U32 Port, U32 Lanes, U32 TimeSteps, U32 VolSteps, U32 ErrorLimit);
+STATUS scrtnySwitchPowerOnSense (SOSI_Test_FILE_HANDLE FilePtr);
+STATUS scrtnySwPowerOnSense (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwCCRStatus (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchCCRStatus (SOSI_Test_FILE_HANDLE FilePtr);
 
+STATUS scrtnySwitchRxEqStatus (U32 StartPort, U32 NumberOfPort);
+STATUS scrtnySwRxEqStatus (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchTxCoeff (U32 StartPort, U32 NumberOfPort);
+STATUS scrtnySwTxCoeff (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwHwEye (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchHwEye (U32 StartPort, U32 NumberOfPort, U32 Timeout);
+STATUS scrtnySwSoftEye (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchSoftEye (U32 StartPort, U32 NumberOfPort);
 
+STATUS scrtnySwMemoryRead (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnySwitchMemoryRead (U32 Address, U32 SizeInBytes);
+STATUS scrtnySwMemoryWrite (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnySwitchMemoryWrite (U32 Address, PU8 PtrValue, U32 SizeInBytes);
+STATUS scrtnyGetHealthLogs (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnySwitchGetConfigPage ();
+STATUS scrtnyScsiPasshrough (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 
-
-
-
-
+STATUS scrntyGetCoreDump (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrntyEraseCoreDump (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnyGetConfigPage (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchResetDevice (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnyOtc ();
 
+STATUS scrtnyGetAllSwitchLogs (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 
 STATUS scrtnyOtcGetCurrentDirectory(char* PtrDirPath);
 
