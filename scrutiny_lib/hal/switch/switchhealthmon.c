@@ -58,6 +58,7 @@ ITEMS_LOOKUP_TABLE  gSwhPortMonitorItemsTable[] =
     { ITEM_NAME (SWH_RECOVERYDIAGNOSTICSERRORS), SWH_RECOVERYDIAGNOSTICSERRORS },
     { ITEM_NAME (SWH_LINKDOWNCOUNT), SWH_LINKDOWNCOUNT },
     { ITEM_NAME (SWH_PORT_TYPE), SWH_PORT_TYPE },
+    { ITEM_NAME (SWH_UNCORR_ERR_STATUS), SWH_UNCORR_ERR_STATUS },
         
 };
 
@@ -465,7 +466,7 @@ SCRUTINY_STATUS shmiEnumerateSwhGlobalSegment (__IN__ PTR_CONFIG_INI_DICTIONARY 
             }
         }
         
-        if (tableIndex == 0xE) 
+        if (tableIndex == EXP_GLOBAL_MAX_ITEMS) 
         {
             return (SCRUTINY_STATUS_FAILED);
         }
@@ -578,7 +579,7 @@ SCRUTINY_STATUS shmiEnumeratePortSegment (__IN__ PTR_CONFIG_INI_DICTIONARY PtrDi
             }
         }
 
-        if (tableIndex == 0xD)
+        if (tableIndex == EXP_PHY_MAX_ITEMS)
         {
             return (SCRUTINY_STATUS_FAILED);
         }
@@ -704,6 +705,7 @@ SCRUTINY_STATUS shmiInitializeHealthConfigurations( __IN__ const char* PtrFolder
     if (status != SCRUTINY_STATUS_SUCCESS)
     {
         //gPtrLoggerController->logiFunctionExit ("chmInitializeHealthConfigurations(status=0x%x)", status);
+        gPtrLoggerSwitch->logiFunctionExit ("shmiInitializeHealthConfigurations  (Status = %x) ",status);
         return (status);
     }
 
@@ -715,14 +717,20 @@ SCRUTINY_STATUS shmiInitializeHealthConfigurations( __IN__ const char* PtrFolder
     {
         /* We don't have to fail for this as of now. */
         //gPtrLoggerController->logiFunctionExit ("chmInitializeHealthConfigurations(status=0x%x)", SCRUTINY_STATUS_FAILED);
-        return (SCRUTINY_STATUS_FAILED);
+        lcpiParserDestroyDictionary(ptrConfigDictionary);
+        status = SCRUTINY_STATUS_FAILED; 
+        gPtrLoggerSwitch->logiFunctionExit ("shmiInitializeHealthConfigurations  (Status = %x) ",status);        
+        return (status);
     }
 
     /* Check if we have any valid entries */
     if (!lcpiHasAnyValidEntries (ptrConfigDictionary))
     {
         //gPtrLoggerController->logiFunctionExit ("chmInitializeHealthConfigurations(status=0x%x)", SCRUTINY_STATUS_FAILED);
-        return (SCRUTINY_STATUS_FAILED);
+        lcpiParserDestroyDictionary(ptrConfigDictionary);
+        status = SCRUTINY_STATUS_FAILED; 
+        gPtrLoggerSwitch->logiFunctionExit ("shmiInitializeHealthConfigurations  (Status = %x) ",status);        
+        return (status);
     }
  
     if (shmiEnumerateConfigDictionaries (ptrConfigDictionary))
@@ -768,6 +776,8 @@ SCRUTINY_STATUS  shmiSwitchHealthCheck (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
 
     
     sosiMemSet (&errorInfo, 0, sizeof(SCRUTINY_SWITCH_HEALTH_ERROR_INFO));
+    sosiMemSet (&swhHealthConfigDataReadback, 0, sizeof(SWH_HEALTH_MONITOR_DATA));
+    
     if (PtrConfigFilePath == NULL)
     {
         status = SCRUTINY_STATUS_INVALID_PARAMETER;
@@ -818,8 +828,8 @@ SCRUTINY_STATUS  shmiSwitchHealthCheck (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
     if (status)
     {
         sosiMemFree (ptrPciePortProperties);
-        sosiMemFree (ptrSwhHealthInfo);        
-        gPtrLoggerExpanders->logiFunctionExit ("shmiSwitchHealthCheck  (Status = %x) ",status);
+        sosiMemFree (ptrSwhHealthInfo);                
+        gPtrLoggerSwitch->logiFunctionExit ("shmiSwitchHealthCheck  (Status = %x) ",status);
         return (status);
 
     }
@@ -829,7 +839,7 @@ SCRUTINY_STATUS  shmiSwitchHealthCheck (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
     {
         sosiMemFree (ptrPciePortProperties);
         sosiMemFree (ptrSwhHealthInfo);
-        gPtrLoggerExpanders->logiFunctionExit ("shmiSwitchHealthCheck  (Status = %x) ",status);
+        gPtrLoggerSwitch->logiFunctionExit ("shmiSwitchHealthCheck  (Status = %x) ",status);
         return (status);
 
     }
@@ -1023,8 +1033,13 @@ SCRUTINY_STATUS shmiFillSwhHealthConfigDataReadBackData (__IN__ PTR_SCRUTINY_DEV
                 {   
                     PtrSwhHealthConfigDataReadBack->PortMonData[portNumber].PortMonitorItems[SWH_PORT_TYPE]   =  PtrPciePortProperties->PortConfigurations[portConfigEntryIndex].PortType;
                     break;
+                }          
+                case SWH_UNCORR_ERR_STATUS:
+                {   
+                    PtrSwhHealthConfigDataReadBack->PortMonData[portNumber].PortMonitorItems[SWH_UNCORR_ERR_STATUS]   =  PtrSwhHealthInfo->PortStatus[portNumber].AerState.Uncorrectable.word;
+                    break;
                 }         
- 
+
 
             }
         
@@ -1256,6 +1271,45 @@ SCRUTINY_STATUS shmiCompareHealthData (__IN__ PTR_SWH_HEALTH_MONITOR_DATA  PtrSw
                     if (PtrSwhHealthConfigDataReadBack->PortMonData[portNumber].PortMonitorItems[SWH_PORT_TYPE] != PtrSwhHealthConfigDataRef->PortMonData[portNumber].PortMonitorItems[SWH_PORT_TYPE])
                     {
                         healthErrorCode = SCRUTINY_SWITCH_HEALTH_ERROR_PORT_TYPE_MISMATCH;
+                    }
+                    break;
+                }         
+                case SWH_UNCORR_ERR_STATUS:
+                {   
+                    /*
+                    #bit4 Data Link Protocol Error
+                    #bit5 Surprise Down Error
+                    #bit12 Poised TLP Status
+                    #bit13 Flow Control Protocol Error
+                    #bit14 Completion Timeout
+                    #bit15 Completer Abort Status
+                    #bit16 Unexpected Completion Status
+                    #bit17 Receiver Overflow Status
+                    #bit18 Malformed TLP Status
+                    #bit19 ECRC Error
+                    #bit20 Unsupported Request Error
+                    #bit21 ACS Violation Status
+                    #bit22 Uncorrectable Internal Error
+                    #other bits reserved.
+                    
+                    #if customer specify reference value = 0, then any status bit error will trigger a error report
+                    #if customer specify some bits, then only these status bit error can trigger a error report
+                    #if customer specify reference value = 0xFFFFFFFF, then any status bit error can trigger a error report.
+                    #reserverd bits are ignored
+                    */
+                    if (PtrSwhHealthConfigDataRef->PortMonData[portNumber].PortMonitorItems[SWH_UNCORR_ERR_STATUS] == 0)
+                    {
+                        if (PtrSwhHealthConfigDataReadBack->PortMonData[portNumber].PortMonitorItems[SWH_UNCORR_ERR_STATUS] & 0x007FF030)
+                        {
+                            healthErrorCode = SCRUTINY_SWITCH_HEALTH_ERROR_UNCORR_ERR;
+                        }
+                    }
+                    else  // reference value is not zero
+                    {
+                        if ( PtrSwhHealthConfigDataReadBack->PortMonData[portNumber].PortMonitorItems[SWH_UNCORR_ERR_STATUS] & 0x007FF030 & PtrSwhHealthConfigDataRef->PortMonData[portNumber].PortMonitorItems[SWH_UNCORR_ERR_STATUS] )
+                        {
+                            healthErrorCode = SCRUTINY_SWITCH_HEALTH_ERROR_UNCORR_ERR;
+                        }
                     }
                     break;
                 }         
