@@ -334,6 +334,7 @@ STATUS scrtnyGetAllSwitchLogs (U32 ArgumentCount, const char** PtrArguments, PU3
 
 STATUS scrtnyOtcGetCurrentDirectory(char* PtrDirPath);
 
-long long timeInMilliseconds(void) ;
+STATUS scrtnySwGetCurrentLtssm (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
+STATUS scrtnySwitchGetCurrentLtssm (U32 Port, U32 Interval, U32 Count);
 
 #endif

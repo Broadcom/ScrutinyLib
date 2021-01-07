@@ -81,6 +81,18 @@ STATUS scrutinyTest (const char *devNode);
 U32   gSelectDeviceIndex = 0;
 SCRUTINY_PRODUCT_HANDLE   gSelectDeviceHandle = 0xFF;
 
+
+VOID scrtnyLibOsiSleep (U32 Milli)
+{
+#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_VMWARE) || defined (OS_BMC)
+    usleep (Milli * 1000);
+#elif OS_WINDOWS
+    Sleep (Milli);
+#elif defined(OS_UEFI)
+    lefiDelay (Milli * 1000);
+#endif
+}
+
 S32 scrtnyLibOsiStrNCmp (const char *PtrStr1, const char *PtrStr2, size_t Num)
 {
     #ifdef OS_UEFI
@@ -297,7 +309,7 @@ static SCRUTINY_LIBTEST_CLI_DEVICECMDS	sCliSwitchCmds[] = {
 	{ "-memwrite", 	 		&scrtnySwMemoryWrite			},
 	{ "-reset", 	 		&scrtnySwitchResetDevice		},
 	{ "-alllogs", 			&scrtnyGetAllSwitchLogs			},
-	
+	{ "-ltssm", 			&scrtnySwGetCurrentLtssm		},
 	
 	
     /*          NULL TERMINATORs        */
@@ -3770,7 +3782,8 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
         printf("(23) Memory Read        (24) Memory Write\n");
         printf("(25) Cfg Page Read      (26) Reset Device\n");
 		printf("(27) Aladin Capture     (28) SCSI Passthrough\n");
-
+		printf("(29) Current LTSSM      \n");
+		
         fflush(stdin);
         scanf("%d",&choice);
 
@@ -3886,6 +3899,10 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
 				
 			case 28:
 				scrtnySwitchScsiPassthrough ();
+				break;
+				
+			case 29:
+				scrtnySwitchGetCurrentLtssm (INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER);
 				break;
                 
             case 0:
@@ -4292,4 +4309,487 @@ STATUS scrtnySwitchHealthCheck (U32 ArgumentCount, const char** PtrArguments, PU
     }
 
     return (STATUS_SUCCESS);
+}
+
+
+void ltssmDecode(U32 ltssm, char *output)
+{
+	char str[100] = "";
+
+	switch ( (ltssm&0xFFF) )
+	{
+	case 0x0:
+		sprintf(str,  "Detect.Quiet ");
+		break;
+	case 0x1:
+		sprintf(str,  "Detect.Active ");
+		break;
+	case 0x2:
+		sprintf(str,  "Detect.Rate ");
+		break;
+	case 0x3:
+		sprintf(str,  "Detect.Wait12ms ");
+		break;
+	case 0x4:
+		sprintf(str,  "Detect.P1_Req ");
+		break;
+	case 0x5:
+		sprintf(str,  "Detect.Donest ");
+		break;
+	case 0x6:
+		sprintf(str,  "Detect.P0_Req ");
+		break;
+	case 0x7:
+		sprintf(str,  "Detect.RateOk ");
+		break;
+	case 0x9:
+		sprintf(str,  "Detect.SpcOp ");
+		break;
+	case 0xA:
+		sprintf(str,  "Detect.DET_WAIT_P1_ST ");
+		break;
+	case 0xB:
+		sprintf(str,  "Detect.DET_WAIT_RATE_ST ");
+		break;
+	case 0x103:
+		sprintf(str,  "Polling.Active ");
+		break;
+	case 0x101:
+		sprintf(str,  "Polling.P0_Req ");
+		break;
+	case 0x10B:
+		sprintf(str,  "Polling.Compliance ");
+		break;
+	case 0x10A:
+		sprintf(str,  "Polling.TxEIOS ");
+		break;
+	case 0x10E:
+		sprintf(str,  "Polling.EIdle ");
+		break;
+	case 0x10F:
+		sprintf(str,  "Polling.Speed ");
+		break;
+	case 0x107:
+		sprintf(str,  "Polling.Config ");
+		break;
+	case 0x106:
+		sprintf(str,  "Polling.Done ");
+		break;
+	case 0x200:
+		sprintf(str,  "CFG.Idle ");
+		break;
+	case 0x201:
+		sprintf(str,  "CFG.LW_Start_Dn ");
+		break;
+	case 0x210:
+		sprintf(str,  "CFG.LW_Start_Up ");
+		break;
+	case 0x211:
+		sprintf(str,  "CFG.XLinkArb_Won ");
+		break;
+	case 0x203:
+		sprintf(str,  "CFG.LW_Accept_Dn ");
+		break;
+	case 0x218:
+		sprintf(str,  "CFG.LW_Accept_Up ");
+		break;
+	case 0x202:
+		sprintf(str,  "CFG.LN_Wait_Dn ");
+		break;
+	case 0x208:
+		sprintf(str,  "CFG.LN_Wait_Up ");
+		break;
+	case 0x206:
+		sprintf(str,  "CFG.LN_Accept_Dn ");
+		break;
+	case 0x20C:
+		sprintf(str,  "CFG.LN_Accept_Up ");
+		break;
+	case 0x207:
+		sprintf(str,  "CFG.Complete_Dn ");
+		break;
+	case 0x21C:
+		sprintf(str,  "CFG.Complete_Up ");
+		break;
+	case 0x214:
+		sprintf(str,  "CFG.TxSDSM ");
+		break;
+	case 0x204:
+		sprintf(str,  "CFG.TxIdle ");
+		break;
+	case 0x20E:
+		sprintf(str,  "CFG.Done_St ");
+		break;
+	case 0x20F:
+		sprintf(str,  "CFG.TxCtlSkip ");
+		break;
+	case 0x400:
+		sprintf(str,  "Recovery.Idle ");
+		break;
+	case 0x401:
+		sprintf(str,  "Recovery.RcvrLock ");
+		break;
+	case 0x403:
+		sprintf(str,  "Recovery.RcvrCfg ");
+		break;
+	case 0x402:
+		sprintf(str,  "Recovery.TxEIOS ");
+		break;
+	case 0x407:
+		sprintf(str,  "Recovery.Speed ");
+		break;
+	case 0x40B:
+		sprintf(str,  "Recovery.TxIdle ");
+		break;
+	case 0x40A:
+		sprintf(str,  "Recovery.Disable ");
+		break;
+	case 0x40F:
+		sprintf(str,  "Recovery.Loopback ");
+		break;
+	case 0x409:
+		sprintf(str,  "Recovery.Reset ");
+		break;
+	case 0x408:
+		sprintf(str,  "Recovery.TxEIEOS ");
+		break;
+	case 0x40D:
+		sprintf(str,  "Recovery.TxSDSM ");
+		break;
+	case 0x40C:
+		sprintf(str,  "Recovery.ErrCfg ");
+		break;
+	case 0x40E:
+		sprintf(str,  "Recovery.ErrDet ");
+		break;
+	case 0x411:
+		sprintf(str,  "Recovery.EqPh0_Up ");
+		break;
+	case 0x419:
+		sprintf(str,  "Recovery.EqPh1_Up ");
+		break;
+	case 0x418:
+		sprintf(str,  "Recovery.EqPh2_Up ");
+		break;
+	case 0x410:
+		sprintf(str,  "Recovery.EqPh3_Up ");
+		break;
+	case 0x405:
+		sprintf(str,  "Recovery.EqPh1_Dn ");
+		break;
+	case 0x415:
+		sprintf(str,  "Recovery.EqPh2_Dn ");
+		break;
+	case 0x417:
+		sprintf(str,  "Recovery.EqPh3_Dn ");
+		break;
+	case 0x41F:
+		sprintf(str,  "Recovery.MyEqPhase ");
+		break;
+	case 0x41E:
+		sprintf(str,  "Recovery.TxCtlSKP ");
+		break;
+	case 0x300:
+		sprintf(str,  "L0_Idle ");
+		break;
+	case 0x301:
+		sprintf(str,  "L0 ");
+		break;
+	case 0x303:
+		sprintf(str,  "L0_TxEIOS ");
+		break;
+	case 0x302:
+		sprintf(str,  "L0s ");
+		break;
+	case 0x307:
+		sprintf(str,  "L1 ");
+		break;
+	case 0x30B:
+		sprintf(str,  "L2 ");
+		break;
+	case 0x30D:
+		sprintf(str,  "ActRec ");		//Internal state from L0 to Recovery
+		break;
+	case 0x309:
+		sprintf(str,  "L0_Recovery ");
+		break;
+	case 0x305:
+		sprintf(str,  "LDWait ");
+		break;
+	case 0x304:
+		sprintf(str,  "LinkDown ");
+		break;
+	case 0x600:
+		sprintf(str,  "HR_Idle ");
+		break;
+	case 0x605:
+		sprintf(str,  "HR_TxEIEOS ");
+		break;
+	case 0x601:
+		sprintf(str,  "HR_Dir ");
+		break;
+	case 0x603:
+		sprintf(str,  "HR_Tx ");
+		break;
+	case 0x602:
+		sprintf(str,  "HR_Rcv ");
+		break;
+	case 0x606:
+		sprintf(str,  "HR_RcvWait ");
+		break;
+	case 0x607:
+		sprintf(str,  "HR_TxEIOS ");
+		break;
+	case 0x604:
+		sprintf(str,  "HR_TxEIOS_1 ");
+		break;
+	case 0x500:
+		sprintf(str,  "LB_Idle ");
+		break;
+	case 0x501:
+		sprintf(str,  "LB_Entry ");
+		break;
+	case 0x504:
+		sprintf(str,  "LB_SlvEntry ");
+		break;
+	case 0x506:
+		sprintf(str,  "LB_TxEIOS ");
+		break;
+	case 0x50C:
+		sprintf(str,  "LB_Speed ");
+		break;
+	case 0x509:
+		sprintf(str,  "LB_ActMst ");
+		break;
+	case 0x50A:
+		sprintf(str,  "LB_ActSlv ");
+		break;
+	case 0x50B:
+		sprintf(str,  "LB_ExitSt ");
+		break;
+	case 0x50F:
+		sprintf(str,  "LB_Eidle ");
+		break;
+	case 0x801:
+		sprintf(str,  "LP_L0sEntry ");
+		break;
+	case 0x802:
+		sprintf(str,  "LP_L0sIdle ");
+		break;
+	case 0x80A:
+		sprintf(str,  "LP_L0sTxEIE ");
+		break;
+	case 0x803:
+		sprintf(str,  "LP_L0sTxFTS ");
+		break;
+	case 0x804:
+		sprintf(str,  "LP_L0sTxSKP ");
+		break;
+	case 0x80C:
+		sprintf(str,  "LP_L0sTxSDSM ");
+		break;
+	case 0x905:
+		sprintf(str,  "LP_L1RxEIOS ");
+		break;
+	case 0x906:
+		sprintf(str,  "LP_L1Idle ");
+		break;
+	case 0xA08:
+		sprintf(str,  "LP_L2RxEIOS ");
+		break;
+	case 0xA0F:
+		sprintf(str,  "LP_L2Idle ");
+		break;
+	case 0xA09:
+		sprintf(str,  "LP_L2Rate ");
+		break;
+	case 0xA0D:
+		sprintf(str,  "LP_L2RateOk ");
+		break;
+	case 0x800:
+		sprintf(str,  "LP_Idle ");
+		break;
+	case 0x900:
+		sprintf(str,  "LP_Idle ");
+		break;
+	case 0xA00:
+		sprintf(str,  "LP_Idle ");
+		break;
+	case 0x700:
+		sprintf(str,  "DISABLE_Idle ");
+		break;
+	case 0x709:
+		sprintf(str,  "DISABLE_TxEIEOS ");
+		break;
+	case 0x701:
+		sprintf(str,  "DISABLE_TxTS1 ");
+		break;
+	case 0x703:
+		sprintf(str,  "DISABLE_TxEIOS ");
+		break;
+	case 0x707:
+		sprintf(str,  "DISABLE_WaitEIOS ");
+		break;
+	case 0x70F:
+		sprintf(str,  "DISABLE_Rate ");
+		break;
+	case 0x70E:
+		sprintf(str,  "DISABLE_RateOk ");
+		break;
+	case 0x706:
+		sprintf(str,  "DISABLE_P1_Req ");
+		break;
+	case 0x704:
+		sprintf(str,  "DISABLE_Done ");
+		break;
+	default:
+		sprintf(str,  "Unknown State ");
+		break;
+	}
+
+	scrtnyLibOsiStrCopy (output, str);
+}
+
+
+STATUS scrtnySwGetCurrentLtssm (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		port, interval, count;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-port", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				port = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -ltssm -port <value> -interval <value> -count <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-interval", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				interval = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -ltssm -port <value> -interval <value> -count <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-count", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				count = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -ltssm -port <value> -interval <value> -count <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -ltssm -port <value> -interval <value> -count <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	return (scrtnySwitchGetCurrentLtssm (port, interval, count));
+}
+
+
+STATUS scrtnySwitchGetCurrentLtssm (U32 Port, U32 Interval, U32 Count)
+{
+	U32  portNum, interval, count;
+	SCRUTINY_STATUS	 libStatus;
+	U32	 regBak, address, regVal;
+	U32	 station = 0, portOffset = 0;
+	U32 ltssm = 0;
+	char		state[100];
+	
+	if (Port == INVALID_PARAMETER)
+	{
+		printf("Input the pcie port number: ");
+		fflush(stdin);
+		scanf("%d",&portNum);
+	}
+	else
+	{
+		portNum = Port;
+	}
+	
+	if (Interval == INVALID_PARAMETER)
+	{
+		printf("Input polling gap between each LTSSM state polling: ");
+		fflush(stdin);
+		scanf("%d",&interval);
+	}
+	else 
+	{
+		interval = Interval;
+	}
+	
+	if (Count == INVALID_PARAMETER)
+	{
+		printf("Input the polling count: ");
+		fflush(stdin);
+		scanf("%d",&count);
+	}
+	else 
+	{
+		count = Count;
+	}
+	
+	station = portNum / 16;
+	portOffset = portNum % 16;
+	regVal = (1 << 20) | (portOffset <<28);
+	address = (0x60800000 | (station<<16) | 0xBB0);
+	
+	/* backup the register value */
+	libStatus = ScrutinySwitchMemoryRead (&gSelectDeviceHandle, address, &regBak, 4);
+    if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("%s: ScrutinySwitchMemoryRead failed with status %x\n", __func__, libStatus);
+        return (STATUS_FAILED);
+    }
+	
+	libStatus = ScrutinySwitchMemoryWrite (&gSelectDeviceHandle, address, (PU32)&regVal, 4);
+	if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf ("%s: ScrutinySwitchMemoryWrite failed with status %x\n", __func__, libStatus);
+        return (STATUS_FAILED);
+    }
+	
+	while (count--)
+	{
+		libStatus = ScrutinySwitchMemoryRead (&gSelectDeviceHandle, address, &ltssm, 4);
+		if (libStatus != SCRUTINY_STATUS_SUCCESS)
+		{
+			printf ("%s: ScrutinySwitchMemoryRead failed with status %x\n", __func__, libStatus);
+			return (STATUS_FAILED);
+		}
+		
+		ltssm &= 0x3FFFF;
+		
+		ltssmDecode (ltssm, state);
+		
+		printf ("iter %d:  %s\n", count, state);
+		
+		scrtnyLibOsiSleep (interval);
+	}
+	
+	libStatus = ScrutinySwitchMemoryWrite (&gSelectDeviceHandle, address, (PU32)&regBak, 4);
+	
+	return (STATUS_SUCCESS);
 }
