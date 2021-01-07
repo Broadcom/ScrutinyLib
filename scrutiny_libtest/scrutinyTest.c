@@ -425,6 +425,7 @@ STATUS  scrtnySdb (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrent
 {
     SCRUTINY_DISCOVERY_PARAMS   discoveryParam;
 	SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+	SCRUTINY_DEVICE_INFO		deviceInfo;
 	
 	(*PtrCurrentIndex) += 1;
 	
@@ -434,23 +435,45 @@ STATUS  scrtnySdb (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrent
         return (STATUS_FAILED);
     }
 	
-	scrtnyLibOsiMemSet (&discoveryParam.u.SerialConfig.DeviceName[0], '\0', sizeof(discoveryParam.u.SerialConfig.DeviceName));
-	scrtnyLibOsiStrCopy (&discoveryParam.u.SerialConfig.DeviceName[0], PtrArguments[(*PtrCurrentIndex)]);
+	if ((*PtrCurrentIndex + 1) == ArgumentCount) 
+	{
+		/* Interactive mode */
+		scrutinyTest (PtrArguments[(*PtrCurrentIndex)]);
+	}
+	else 
+	{
+		scrtnyLibOsiMemSet (&discoveryParam.u.SerialConfig.DeviceName[0], '\0', sizeof(discoveryParam.u.SerialConfig.DeviceName));
+		scrtnyLibOsiStrCopy (&discoveryParam.u.SerialConfig.DeviceName[0], PtrArguments[(*PtrCurrentIndex)]);
+		
+		libStatus = ScrutinyDiscoverDevices (SCRUTINY_DISCOVERY_TYPE_SERIAL_DEBUG, &discoveryParam);
+	  
+		if (libStatus != SCRUTINY_STATUS_SUCCESS)
+		{
+			printf ("ScrutinyDiscoverDevices ().. Failed Status -  %x \n", libStatus);
+			printf ("Unable to discover any devices \n");
+			
+			return (STATUS_FAILED);
+		}
+		
+		/* only one device can be found via SDB */
+		gSelectDeviceIndex = 0;
 	
-	libStatus = ScrutinyDiscoverDevices (SCRUTINY_DISCOVERY_TYPE_SERIAL_DEBUG, &discoveryParam);
-  
-    if (libStatus != SCRUTINY_STATUS_SUCCESS)
-    {
-        printf ("ScrutinyDiscoverDevices ().. Failed Status -  %x \n", libStatus);
-		printf ("Unable to discover any devices \n");
-        
-        return (STATUS_FAILED);
-    }
+		libStatus = ScrutinyGetDeviceInfo (gSelectDeviceIndex, sizeof (SCRUTINY_DEVICE_INFO), &deviceInfo);
+		if (libStatus != SCRUTINY_STATUS_SUCCESS)
+		{
+			gSelectDeviceHandle = 0xFF;
+			gSelectDeviceIndex = 0xFF;
+			printf ("ScrutinyGetDeviceInfo ().. Failed Status -  %x \n", libStatus);
+			return (STATUS_FAILED);
+		}
 	
-	
-	/*TODO: Need further check whether it's interactive mode or one-line mode */
-	
-	
+		gSelectDeviceHandle = deviceInfo.ProductHandle;
+		
+		/* one line mode */
+		scrntySwitchArgumentsParse (ArgumentCount, PtrArguments, PtrCurrentIndex);
+		
+	}
+
 	return (STATUS_SUCCESS);
 }
 
@@ -3912,6 +3935,18 @@ STATUS scrtnySwitchDetails (__IN__ U32 Index, __IN__ PTR_SCRUTINY_DEVICE_INFO Pt
     {
 
         printf ("%3d)               %-18s Switch (%x %x:%x:%x-PCI)\n",
+                                      Index,
+                                      "Unknown",    
+                                      PtrDeviceInfo->u.SwitchInfo.PciAddress.SegmentNumber,
+                                      PtrDeviceInfo->u.SwitchInfo.PciAddress.BusNumber,
+                                      PtrDeviceInfo->u.SwitchInfo.PciAddress.DeviceNumber,
+                                      PtrDeviceInfo->u.SwitchInfo.PciAddress.FunctionNumber);
+
+    }
+	else if (PtrDeviceInfo->HandleType == SCRUTINY_HANDLE_TYPE_SDB)
+    {
+
+        printf ("%3d)               %-18s Switch (%x %x:%x:%x-SDB)\n",
                                       Index,
                                       "Unknown",    
                                       PtrDeviceInfo->u.SwitchInfo.PciAddress.SegmentNumber,
