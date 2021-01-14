@@ -310,6 +310,7 @@ static SCRUTINY_LIBTEST_CLI_DEVICECMDS	sCliSwitchCmds[] = {
 	{ "-reset", 	 		&scrtnySwitchResetDevice		},
 	{ "-alllogs", 			&scrtnyGetAllSwitchLogs			},
 	{ "-ltssm", 			&scrtnySwGetCurrentLtssm		},
+	{ "-perf", 				&scrtnySwPortPerf				},
 	
 	
     /*          NULL TERMINATORs        */
@@ -3782,7 +3783,7 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
         printf("(23) Memory Read        (24) Memory Write\n");
         printf("(25) Cfg Page Read      (26) Reset Device\n");
 		printf("(27) Aladin Capture     (28) SCSI Passthrough\n");
-		printf("(29) Current LTSSM      \n");
+		printf("(29) Current LTSSM      (30) Performance Counter\n");
 		
         fflush(stdin);
         scanf("%d",&choice);
@@ -3904,8 +3905,12 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
 			case 29:
 				scrtnySwitchGetCurrentLtssm (INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER);
 				break;
-                
-            case 0:
+				
+            case 30:
+				scrtnySwitchPortPerf (INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER);
+				break;
+            
+			case 0:
             default:
                 bExit=1;
                 break;
@@ -4792,4 +4797,361 @@ STATUS scrtnySwitchGetCurrentLtssm (U32 Port, U32 Interval, U32 Count)
 	libStatus = ScrutinySwitchMemoryWrite (&gSelectDeviceHandle, address, (PU32)&regBak, 4);
 	
 	return (STATUS_SUCCESS);
+}
+
+
+STATUS ScrutinySwitchDecodePciePortPerformance (__IN__ PTR_SCRUTINY_PRODUCT_HANDLE PtrProductHandle, __OUT__ PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE 	PtrPciePortPerformance)
+{
+    U32 portIndex;
+    char tempstr[100];
+
+    printf ("Pre-counter\n");
+    printf ("Port                PH        PDW        NPH        NPDW        CplH        CplDW      DLLP\n\n");
+    for (portIndex = 0; portIndex < ATLAS_PMG_MAX_PHYS; portIndex++)
+    {
+        if (PtrPciePortPerformance->PortPerfData[portIndex].Valid)
+        {
+            printf("%3d Ing    ", portIndex);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressNPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressNPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressCplHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressCplDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.IngressDLLPCounter);
+            printf("\n");
+            printf("%3d Eg     ", portIndex);            
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressNPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressNPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressCplHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressCplDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PrePortPerfCounter.EgressDLLPCounter);
+            printf("\n\n");
+
+
+
+        }
+    }
+
+    printf ("Current counter\n");
+    printf ("Port                PH        PDW        NPH        NPDW        CplH        CplDW      DLLP\n\n");
+    for (portIndex = 0; portIndex < ATLAS_PMG_MAX_PHYS; portIndex++)
+    {
+        if (PtrPciePortPerformance->PortPerfData[portIndex].Valid)
+        {
+
+            printf("%3d Ing    ", portIndex);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressNPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressNPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressCplHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressCplDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.IngressDLLPCounter);
+            printf("\n");
+            printf("%3d Eg     ", portIndex);            
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressNPHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressNPDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressCplHCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressCplDWCounter);
+            printf("%11x", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfCounter.EgressDLLPCounter);
+            printf("\n\n");
+
+
+        }
+    }
+
+
+    printf ("Statistic\n");
+    printf ("Port                Link        Total        Total        Payload        Payload        Payload\n\n");
+    printf ("Port                Util        Data         Rate         Total          Rate           Avg/TLP\n\n");
+    for (portIndex = 0; portIndex < ATLAS_PMG_MAX_PHYS; portIndex++)
+    {
+        if (PtrPciePortPerformance->PortPerfData[portIndex].Valid)
+        {
+
+            printf("%3d Ing    ", portIndex);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressLinkUtilization);                        
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalBytes);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalByteRate);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadTotalBytes);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadByteRate);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadAvgPerTlp);
+            
+
+            printf("\n");
+            printf("%3d Eg     ", portIndex);            
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressLinkUtilization);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalBytes);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalByteRate);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadTotalBytes);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadByteRate);
+            printf("%12llu  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadAvgPerTlp);
+            
+            printf("\n\n");
+
+        }
+    }
+
+    printf ("Statistic Friendly Display\n");
+    printf ("Port                Link        Total        Total        Payload        Payload        Payload\n\n");
+    printf ("Port                Util        Data         Rate         Total          Rate           Avg/TLP\n\n");
+    for (portIndex = 0; portIndex < ATLAS_PMG_MAX_PHYS; portIndex++)
+    {
+        if (PtrPciePortPerformance->PortPerfData[portIndex].Valid)
+        {
+
+            printf("%3d Ing    ", portIndex);
+            printf("%9llu.%llu%%  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressLinkUtilization / 100, PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressLinkUtilization % 100);                        
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalBytes, tempstr, 100);
+            printf("%10s  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalByteRate, tempstr, 100);            
+            printf("%10s/S  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadTotalBytes, tempstr, 100);            
+            printf("%10s  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadByteRate, tempstr, 100);            
+            printf("%10s/S  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadAvgPerTlp, tempstr, 100);            
+            printf("%10s  ", tempstr);
+
+            printf("\n");
+            printf("%3d Eg     ", portIndex);            
+            printf("%9llu.%llu%%  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressLinkUtilization / 100, PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressLinkUtilization % 100);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalBytes, tempstr, 100);
+            printf("%10s  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalByteRate, tempstr, 100);            
+            printf("%10s/S  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadTotalBytes, tempstr, 100);            
+            printf("%10s  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadByteRate, tempstr, 100);            
+            printf("%10s/S  ", tempstr);
+            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadAvgPerTlp, tempstr, 100);            
+            printf("%10s  ", tempstr);
+
+            printf("\n\n");
+        }
+    }
+
+    return (STATUS_SUCCESS);
+}
+
+void GroupDigitsWithTag (unsigned long long Value, char *PtrStr, U32 StrSize)
+{
+    unsigned long long decimalValue;
+
+    memset (PtrStr, 0x00, StrSize);
+    
+    if( Value < (1 << 10) )              // bytes
+    {
+        sprintf(PtrStr, "%llu B", Value);
+    }
+    else if( Value < (1 << 20) )         // KB
+    {
+        decimalValue = (unsigned long long )Value / (1 << 10);
+        sprintf(PtrStr, "%llu KiB", decimalValue);
+    }
+    else if( Value < ((unsigned long long)1 << 30) )    // MB
+    {
+        decimalValue = (unsigned long long)Value / (1 << 20);
+        sprintf(PtrStr, "%llu MiB", decimalValue);
+    }
+    else if( Value < ((unsigned long long)1 << 40) )    // GB
+    {
+        decimalValue = (unsigned long long)Value / (1 << 30);
+        sprintf(PtrStr, "%llu GiB", decimalValue);
+    }
+    else                                // TB
+    {
+        decimalValue = (unsigned long long)Value / ((unsigned long long)1 << 40);
+        sprintf(PtrStr, "%llu TiB", decimalValue);
+    }
+}
+
+
+STATUS scrtnySwPortPerf (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		loop, delay, doStatistic, statisticElapsedTimeMs = 1000;
+	
+	loop = delay = doStatistic = INVALID_PARAMETER;
+	
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-loop", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				loop = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -perf -loop <value> -delay <value> -statistic <value> -stattime <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-delay", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				delay = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -perf -loop <value> -delay <value> -statistic <value> -stattime <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-statistic", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				doStatistic = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -perf -loop <value> -delay <value> -statistic <value> -stattime <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-stattime", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				statisticElapsedTimeMs = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -perf -loop <value> -delay <value> -statistic <value> -stattime <value>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -perf -loop <value> -delay <value> -statistic <value> -stattime <value>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	return (scrtnySwitchPortPerf (loop, delay, doStatistic, statisticElapsedTimeMs));
+}
+
+STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTime)
+{
+    SCRUTINY_STATUS libStatus = SCRUTINY_STATUS_SUCCESS;
+    PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE   PtrPciePortPerformance = NULL;
+    U32 bufferSize;
+    U32 index;
+    U32 timeDelayMs;
+    U32 loop;
+    U32 doStatistic = 0;
+    U32 statisticElapsedTimeMs = 0;
+    
+    // how many loogs you want to do
+	if (Loops == INVALID_PARAMETER) 
+	{
+		printf ("input the test loops:");
+		scanf("%d",&loop);
+	}
+	else 
+	{ 
+		loop = Loops;
+	}
+    
+    //input the time delay for first read
+	if (Delay == INVALID_PARAMETER) 
+	{
+		printf("input the first read time delay (ms):");                    
+		scanf("%d",&timeDelayMs);
+	}
+	else
+	{
+		timeDelayMs = Delay;
+	}
+	
+	if (Statistic == INVALID_PARAMETER )
+	{
+		printf("do you want do statistic?(1-Yes/0-No):");                    
+		scanf("%d",&doStatistic);
+	}
+	else 
+	{
+		doStatistic = Statistic;
+	}
+			
+    if ( doStatistic )
+    {
+		if (ElapsedTime == INVALID_PARAMETER)
+		{
+			printf("input the statistic time interval(ms):");                    
+			scanf("%d",&statisticElapsedTimeMs);
+		}
+		else 
+		{
+			statisticElapsedTimeMs = ElapsedTime;
+		}
+    }
+
+    
+    bufferSize = sizeof (SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE);
+    PtrPciePortPerformance = (PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE) malloc (bufferSize);
+    if (PtrPciePortPerformance == NULL)
+    {
+        printf("Unable to allocate buffer to perform port performance test\n\n");
+        return (STATUS_MEM_FAILED);
+    }
+
+    memset (PtrPciePortPerformance, 0x0, bufferSize);
+
+    //Step 1 Start
+    PtrPciePortPerformance->Operation = SWITCH_PCIE_PERF_OP_CMD_START;
+    libStatus = ScrutinySwitchGetPciePortPerformance ( &gSelectDeviceHandle, PtrPciePortPerformance);
+    if (libStatus)
+    {
+        free (PtrPciePortPerformance);
+        return (STATUS_FAILED);    
+    }
+
+    for (index = 0; index < loop; index++)
+    {                        
+        //Step 2  delay some time
+        #if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_VMWARE) || defined (OS_BMC)
+        usleep (1000 * timeDelayMs);
+        #elif OS_WINDOWS
+        Sleep ( timeDelayMs);
+        #elif defined(OS_UEFI)
+        lefiDelay (1000 * timeDelayMs);
+        #endif
+
+
+        //Step 3 Read
+        PtrPciePortPerformance->Operation = SWITCH_PCIE_PERF_OP_CMD_READ;
+        PtrPciePortPerformance->Flag.DoStatistic = doStatistic;
+        PtrPciePortPerformance->StatisticElapsedTimeMs = statisticElapsedTimeMs;
+        libStatus = ScrutinySwitchGetPciePortPerformance ( &gSelectDeviceHandle, PtrPciePortPerformance);
+        if (libStatus)
+        {
+            free (PtrPciePortPerformance);
+            return (STATUS_FAILED);    
+        }
+
+        ScrutinySwitchDecodePciePortPerformance ( &gSelectDeviceHandle, PtrPciePortPerformance);
+    }
+
+    //Step 4 Stop
+    PtrPciePortPerformance->Operation = SWITCH_PCIE_PERF_OP_CMD_STOP;
+    libStatus = ScrutinySwitchGetPciePortPerformance ( &gSelectDeviceHandle, PtrPciePortPerformance);
+
+    free (PtrPciePortPerformance);
+    return (STATUS_SUCCESS);
+
 }

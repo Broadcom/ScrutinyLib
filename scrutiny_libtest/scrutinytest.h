@@ -336,5 +336,8 @@ STATUS scrtnyOtcGetCurrentDirectory(char* PtrDirPath);
 
 STATUS scrtnySwGetCurrentLtssm (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 STATUS scrtnySwitchGetCurrentLtssm (U32 Port, U32 Interval, U32 Count);
+STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTime);
+void GroupDigitsWithTag (unsigned long long Value, char *PtrStr, U32 StrSize);
+STATUS scrtnySwPortPerf (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex);
 
 #endif
