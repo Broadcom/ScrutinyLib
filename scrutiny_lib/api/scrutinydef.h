@@ -1056,6 +1056,8 @@ typedef struct _SCRUTINY_SWITCH_ADVANCED_ERROR_STATUS
 
 
 #define ATLAS_PMG_MAX_PHYS                    (128)
+#define ATLAS_MAX_PORT_PER_STN                (16)
+#define ATLAS_MAX_STN                         (8)
 
 typedef struct _SCRUTINY_SWITCH_ERROR_STATISTIC
 {
@@ -1616,6 +1618,93 @@ typedef struct _SCRUTINY_ATLAS_SBR_HEADER
 
 } SCRUTINY_ATLAS_SBR_HEADER, *PTR_SCRUTINY_ATLAS_SBR_HEADER;
 
+/** Performance counter value */
+typedef struct _SWITCH_PCIE_PERF_ONE_PORT_COUNTERS
+{
+    U32 IngressPHCounter;        //Ingress port, Number of Posted Headers
+    U32 IngressPDWCounter;       //Ingress port, Number of Posted DWords
+    U32 IngressNPHCounter;       //Ingress port, Number of Non-Posted Headers
+    U32 IngressNPDWCounter;      //Ingress port, Non-Posted DWords
+    U32 IngressCplHCounter;      //Ingress port, Number of Completion Headers
+    U32 IngressCplDWCounter;     //Ingress port, Number of Completion DWords
+    U32 IngressDLLPCounter;      //Ingress port, Number of DLLPs
+    U32 EgressPHCounter;         //Egress port, Number of Posted Headers
+    U32 EgressPDWCounter;        //Egress port, Number of Posted DWords
+    U32 EgressNPHCounter;        //Egress port, Number of Non-Posted Headers
+    U32 EgressNPDWCounter;       //Egress port, Non-Posted DWords
+    U32 EgressCplHCounter;       //Egress port, Number of Completion Headers
+    U32 EgressCplDWCounter;      //Egress port, Number of Completion DWords
+    U32 EgressDLLPCounter;       //Egress port, Number of DLLPs
+} SWITCH_PCIE_PERF_ONE_PORT_COUNTERS, *PTR_SWITCH_PCIE_PERF_ONE_PORT_COUNTERS;
+
+
+
+
+/** Performance statistics  */
+typedef struct _SWITCH_PCIE_PERF_ONE_PORT_STATISTIC
+{
+    //Ingress Statistic
+    unsigned long long IngressTotalBytes;                       /**< Total bytes including overhead */
+    unsigned long long IngressTotalByteRate;                    /**< Total byte rate */
+    unsigned long long IngressPayloadReadBytes;                 /**< Payload bytes read (Completion TLPs) */
+    unsigned long long IngressPayloadWriteBytes;                /**< Payload bytes written (Posted TLPs) */
+    unsigned long long IngressPayloadTotalBytes;                /**< Payload total bytes */
+    unsigned long long IngressPayloadAvgPerTlp;                 /**< Payload average size per TLP */
+    unsigned long long IngressPayloadByteRate;                  /**< Payload byte rate */
+    unsigned long long IngressLinkUtilization;                  /**< Total link utilization * 100 */
+
+
+    //Egress Statistic
+    unsigned long long EgressTotalBytes;                       /**< Total bytes including overhead */
+    unsigned long long EgressTotalByteRate;                    /**< Total byte rate */
+    unsigned long long EgressPayloadReadBytes;                 /**< Payload bytes read (Completion TLPs) */
+    unsigned long long EgressPayloadWriteBytes;                /**< Payload bytes written (Posted TLPs) */
+    unsigned long long EgressPayloadTotalBytes;                /**< Payload total bytes */
+    unsigned long long EgressPayloadAvgPerTlp;                 /**< Payload average size per TLP */
+    unsigned long long EgressPayloadByteRate;                  /**< Payload byte rate */
+    unsigned long long EgressLinkUtilization;                  /**< Total link utilization * 100 */
+
+
+} SWITCH_PCIE_PERF_ONE_PORT_STATISTIC, *PTR_SWITCH_PCIE_PERF_ONE_PORT_STATISTIC;
+
+
+
+typedef struct _SWITCH_PCIE_PERF_ONE_PORT_DATA
+{
+    U32                                   Valid;              //indicate if the data is valid, for every port , valid should be check first.
+    PCI_DEVICE_LINK_SPEED                 NegotiatedLinkSpeed;
+    PCI_DEVICE_LINK_SPEED                 MaxLinkSpeed;
+    PCI_DEVICE_LINK_WIDTH                 NegotiatedLinkWidth;
+    PCI_DEVICE_LINK_WIDTH                 MaxLinkWidth;
+    SWITCH_PCIE_PERF_ONE_PORT_COUNTERS    PortPerfCounter;    // when do statistic, user ignore it. when not do statistic it  return performance counter result.
+    SWITCH_PCIE_PERF_ONE_PORT_COUNTERS    PrePortPerfCounter; // for debug purpose, user just ignore it.   
+    SWITCH_PCIE_PERF_ONE_PORT_STATISTIC   PortPerfStats;      // when do statistic, it return Statistic data, only valid when do Statistic test.
+} SWITCH_PCIE_PERF_ONE_PORT_DATA, *PTR_SWITCH_PCIE_PERF_ONE_PORT_DATA;
+
+typedef enum _SCRUTINY_SWITCH_PCIE_PERF_OP_CMD
+{
+    SWITCH_PCIE_PERF_OP_CMD_NOTHING = 0, // No operation
+    SWITCH_PCIE_PERF_OP_CMD_START,       // Start the performance counters running
+    SWITCH_PCIE_PERF_OP_CMD_READ,        // Read the performance result
+    SWITCH_PCIE_PERF_OP_CMD_STOP         // Stop the performance counters running
+    
+} SCRUTINY_SWITCH_PCIE_PERF_OP_CMD;
+
+typedef struct _SWITCH_PCIE_PORT_PERFORMANCE_FLAG
+{
+    U32             DoStatistic     :1;    /* bit 0: Do Statistic Action*/
+    U32             Reserved31      :31;   /*  reserved bits  */
+
+} SWITCH_PCIE_PORT_PERFORMANCE_FLAG, *PTR_SWITCH_PCIE_PORT_PERFORMANCE_FLAG;
+
+typedef struct _SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE
+{
+    SCRUTINY_SWITCH_PCIE_PERF_OP_CMD             Operation;                      // user input parameter OP CMD
+    U32                                          ToTalUserPhyNum;                // total phy except management phy, it is up to chip bonding , 88096 has 96, 88048 has 48.
+    SWITCH_PCIE_PORT_PERFORMANCE_FLAG            Flag;                           // some flags, to indicate if do statistic etc.
+    U32                                          StatisticElapsedTimeMs;         // Only valid for statistic test, user input parameter for statistic, the time between the first counter read and the second counter read, the unit is mini second
+    SWITCH_PCIE_PERF_ONE_PORT_DATA               PortPerfData[ATLAS_PMG_MAX_PHYS];    
+} SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE, *PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE;
 
 #endif /* __SCRUTINY_DEF__H__ */
 

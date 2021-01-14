@@ -238,6 +238,7 @@
 #include "switchsignalintegrity.h"
 #include "switchregbla.h"
 #include "switchlanemargin.h"
+#include "switchportperformance.h"
 
 #ifdef OS_LINUX
 #include "pcicommon.h"

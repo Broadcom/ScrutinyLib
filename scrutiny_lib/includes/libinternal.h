@@ -178,7 +178,7 @@ SCRUTINY_STATUS slibiSwitchHardwareEyeClean( __IN__ PTR_SCRUTINY_DEVICE PtrDevic
 SCRUTINY_STATUS slibiSwitchSoftwareEye( __IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U32 StartPort, __IN__ U32 NumberOfPort);
 SCRUTINY_STATUS slibiSwitchGetPowerOnSense (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_POWER_ON_SENSE PtrSwPwrOnSense );
 SCRUTINY_STATUS slibiSwitchGetCcrStatus (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_CCR_STATUS PtrSwCcrStatus );
-
+SCRUTINY_STATUS slibiSwitchGetPciePortPerformance (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE   PtrPciePortPerformance );
 
 
 

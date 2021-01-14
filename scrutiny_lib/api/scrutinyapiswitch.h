@@ -177,6 +177,11 @@ SCRUTINY_STATUS ScrutinySwitchPerformLaneMargining    (
     __OUT__ PTR_SCRUTINY_SWITCH_LANE_MARGIN_RESPONSE    PtrSwitchLaneMarginResp 
 );
 
+SCRUTINY_STATUS ScrutinySwitchGetPciePortPerformance (
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE                  PtrProductHandle, 
+    __OUT__ PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE   PtrPciePortPerformance
+);
+
 
 #if defined(OS_LINUX)
 

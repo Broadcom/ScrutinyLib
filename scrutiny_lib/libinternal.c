@@ -3441,6 +3441,37 @@ SCRUTINY_STATUS slibiSwitchGetCcrStatus (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, _
 
 }
 
+/**
+ *
+ *  @method  ScrutinySwitchGetPciePortPerformance ()
+ *
+ *  @param   PtrDevice                         pointer to  device
+ *
+ *  @param   PtrPciePortPerformance            Pointer to PCIe Performance data output.
+ *
+ *
+    @return  SCRUTINY_STATUS    SCRUTINY_STATUS_SUCCESS when success
+ *                              SCRUTINY_STATUS_FAILED on failure.
+ *                              SCRUTINY_STATUS_INVALID_HANDLE - invalid input handle
+ *                              SCRUTINY_STATUS_UNSUPPORTED - device not support this feature
+ *                              SCRUTINY_STATUS_NO_MEMORY - interal memory failure
+ *                              SCRUTINY_STATUS_IOCTL_ERROR - An IOCTL error occurred when an IOCTL call was issued to the device driver.
+ *
+ *  @brief                           This method get switch PCIe port performance data .
+ *
+ *
+ */
+SCRUTINY_STATUS slibiSwitchGetPciePortPerformance (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE   PtrPciePortPerformance )
+{
+    /* Check if we have switch otherwise, we will have to show invalid request */
+
+    if (PtrDevice->ProductFamily != SCRUTINY_PRODUCT_FAMILY_SWITCH)
+    {
+        return (SCRUTINY_STATUS_ILLEGAL_REQUEST);
+    }
+    return (sppGetPciePortPerformance ( PtrDevice, PtrPciePortPerformance));
+
+}
 
  /**
  *

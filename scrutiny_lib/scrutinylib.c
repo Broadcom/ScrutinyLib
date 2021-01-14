@@ -2631,6 +2631,38 @@ SCRUTINY_STATUS ScrutinySwitchGetCcrStatus (__IN__   PTR_SCRUTINY_PRODUCT_HANDLE
 
 }
 
+/**
+ *
+ *  @method  ScrutinySwitchGetPciePortPerformance ()
+ *
+ *  @param   PtrProductHandle                  Pointer to Device Handle
+ *
+ *  @param   PtrPciePortPerformance            Pointer to PCIe Performance data output.
+ *
+ *
+    @return  SCRUTINY_STATUS    SCRUTINY_STATUS_SUCCESS when success
+ *                              SCRUTINY_STATUS_FAILED on failure.
+ *                              SCRUTINY_STATUS_INVALID_HANDLE - invalid input handle
+ *                              SCRUTINY_STATUS_UNSUPPORTED - device not support this feature
+ *                              SCRUTINY_STATUS_NO_MEMORY - interal memory failure
+ *                              SCRUTINY_STATUS_IOCTL_ERROR - An IOCTL error occurred when an IOCTL call was issued to the device driver.
+ *
+ *  @brief                           This method get switch PCIe port performance data .
+ *
+ *
+ */
+
+SCRUTINY_STATUS ScrutinySwitchGetPciePortPerformance ( __IN__ PTR_SCRUTINY_PRODUCT_HANDLE  PtrProductHandle, __OUT__ PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE   PtrPciePortPerformance)
+{
+    PTR_SCRUTINY_DEVICE ptrDevice = NULL;
+
+    if (slibiProductHandleToScrutinyDevice (PtrProductHandle, &ptrDevice))
+    {
+        return (SCRUTINY_STATUS_INVALID_HANDLE);
+    }
+    return (slibiSwitchGetPciePortPerformance (ptrDevice, PtrPciePortPerformance));
+
+}
 
 /**
  *
