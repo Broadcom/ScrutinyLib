@@ -5056,10 +5056,10 @@ STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTim
     U32 doStatistic = 0;
     U32 statisticElapsedTimeMs = 0;
     
-    // how many loogs you want to do
+    // how many loops you want to do
 	if (Loops == INVALID_PARAMETER) 
 	{
-		printf ("input the test loops:");
+		printf ("Input the test loops count:");
 		scanf("%d",&loop);
 	}
 	else 
@@ -5070,7 +5070,7 @@ STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTim
     //input the time delay for first read
 	if (Delay == INVALID_PARAMETER) 
 	{
-		printf("input the first read time delay (ms):");                    
+		printf("Input the first read time delay (ms):");                    
 		scanf("%d",&timeDelayMs);
 	}
 	else
@@ -5080,7 +5080,7 @@ STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTim
 	
 	if (Statistic == INVALID_PARAMETER )
 	{
-		printf("do you want do statistic?(1-Yes/0-No):");                    
+		printf("Do you want perform statistic?(1-Yes/0-No):");                    
 		scanf("%d",&doStatistic);
 	}
 	else 
@@ -5092,7 +5092,7 @@ STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTim
     {
 		if (ElapsedTime == INVALID_PARAMETER)
 		{
-			printf("input the statistic time interval(ms):");                    
+			printf("Input the statistic time interval(ms):");                    
 			scanf("%d",&statisticElapsedTimeMs);
 		}
 		else 
