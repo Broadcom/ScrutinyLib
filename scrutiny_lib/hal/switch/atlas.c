@@ -574,11 +574,15 @@ SCRUTINY_STATUS atlasGetFlashTable (
     U32 tempOffset = 0;
     PTR_ATLAS_FLASH_TABLE ptrFlashTable;
 
+    gPtrLoggerSwitch->logiFunctionEntry ("atlasGetFlashTable (PtrDevice=%x, PtrFlashTable=%x)", PtrDevice != NULL, PtrFlashTable != NULL); 
+
     ptrFlashTable = sosiMemAlloc (sizeof (ATLAS_FLASH_TABLE));
     if (ptrFlashTable == NULL)
     {
         *PtrFlashTable = NULL;
-        return SCRUTINY_STATUS_FAILED;
+        gPtrLoggerSwitch->logiDebug ("Failed to allocate memory for flash table");
+        gPtrLoggerSwitch->logiFunctionExit ("atlasGetFlashTable (status=%x)", SCRUTINY_STATUS_FAILED); 
+        return (SCRUTINY_STATUS_FAILED);
     }
 
     /*
@@ -591,6 +595,8 @@ SCRUTINY_STATUS atlasGetFlashTable (
         if (!atlasIsSBRBootloaderRegionAvailable (PtrDevice, ATLAS_FLASH_SBR_BOOTLOADER_2))
         {
             /* We don't have any valid data available */
+            gPtrLoggerSwitch->logiDebug ("SBR bootloader Region is NOT available");
+            gPtrLoggerSwitch->logiFunctionExit ("atlasGetFlashTable (status=%x)", SCRUTINY_STATUS_FAILED); 
             return (SCRUTINY_STATUS_FAILED);
         }
 
@@ -602,20 +608,28 @@ SCRUTINY_STATUS atlasGetFlashTable (
 
     tempOffset = REGISTER_ADDRESS_ATLAS_FLASH + ATLAS_HALI_FLASH_FLASHTABLE_OFFSET + regionOffset;
 
+    gPtrLoggerSwitch->logiDebug ("region offset %x", regionOffset);
+
     if (bsdiMemoryRead32 (PtrDevice, tempOffset, (PU32) ptrFlashTable, flashTableLength))
     {
+        gPtrLoggerSwitch->logiDebug ("bsdiMemoryRead32 (offset=%x) failed", tempOffset);
+        gPtrLoggerSwitch->logiFunctionExit ("atlasGetFlashTable (status=%x)", SCRUTINY_STATUS_FAILED); 
         return (SCRUTINY_STATUS_FAILED);
     }
 
     /* We got the flash table. Now, check if the table is good. */
+    gPtrLoggerSwitch->logiDumpMemoryInVerbose (ptrFlashTable, flashTableLength, gPtrLoggerSwitch);
 
     if (atlasFlashTableIsValid (PtrDevice, (PTR_ATLAS_FLASH_TABLE) ptrFlashTable))
     {
+        gPtrLoggerSwitch->logiDebug ("atlas FLASH table is NOT valid");
+        gPtrLoggerSwitch->logiFunctionExit ("atlasGetFlashTable (status=%x)", SCRUTINY_STATUS_FAILED); 
         return (SCRUTINY_STATUS_FAILED);
     }
 
     *PtrFlashTable = ptrFlashTable;
 
+    gPtrLoggerSwitch->logiFunctionExit ("atlasGetFlashTable (status=%x)", SCRUTINY_STATUS_SUCCESS); 
     return (SCRUTINY_STATUS_SUCCESS);
 }
 

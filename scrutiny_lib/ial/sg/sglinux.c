@@ -312,6 +312,8 @@ SCRUTINY_STATUS sgOpenDevice (__IN__ PTR_SCRUTINY_DEVICE PtrDevice)
     int     handle = 0;
     int     ioctlRetVal = -1;
     Sg_scsi_id  sgData;
+	
+	gPtrLoggerScsi->logiFunctionEntry ("sgOpenDevice ( )");
 
     if (PtrDevice == NULL)
     {
@@ -324,20 +326,25 @@ SCRUTINY_STATUS sgOpenDevice (__IN__ PTR_SCRUTINY_DEVICE PtrDevice)
 
     if (handle < 0)
     {
+		gPtrLoggerScsi->logiDebug ("open device file failed");
+		gPtrLoggerScsi->logiFunctionExit ("sgOpenDevice (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
     }
 
     ioctlRetVal = ioctl (handle, SG_GET_SCSI_ID, &sgData);
-
+	
+	gPtrLoggerScsi->logiDebug ("ioctl (status=%d)", ioctlRetVal);
+	
     if ((ioctlRetVal < 0) || (sgData.scsi_type != TYPE_ENCLOSURE))
     {
         close (handle);
-
+		gPtrLoggerScsi->logiFunctionExit ("sgOpenDevice (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
     }
 
     PtrDevice->Handle.ScsiHandle.SgDeviceHandle = handle;
-
+	
+	gPtrLoggerScsi->logiFunctionExit ("sgOpenDevice (status=%x)", SCRUTINY_STATUS_SUCCESS);
     return (SCRUTINY_STATUS_SUCCESS);
 
 }
@@ -406,6 +413,8 @@ SCRUTINY_STATUS sgReadCdb (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U8 *PtrC
     unsigned char  senseBuff[32];
     Sg_io_hdr      ioHdr;
     int            ioctlRetVal;
+	
+	gPtrLoggerScsi->logiFunctionEntry ("sgReadCdb ( )");
 
     sosiMemSet (&ioHdr, 0, sizeof (Sg_io_hdr));
     sosiMemSet (senseBuff, 0, sizeof (senseBuff));
@@ -423,6 +432,8 @@ SCRUTINY_STATUS sgReadCdb (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U8 *PtrC
 
     if ((ioctlRetVal = ioctl ((int) PtrDevice->Handle.ScsiHandle.SgDeviceHandle, SG_IO, &ioHdr)) < 0)
     {
+		gPtrLoggerScsi->logiDebug ("ioctl (status=%x)", ioctlRetVal);
+		gPtrLoggerScsi->logiFunctionExit ("sgReadCdb (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
     }
 
@@ -444,15 +455,17 @@ SCRUTINY_STATUS sgReadCdb (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U8 *PtrC
 
         }
 
-        // gPtrScrutinyLogger->logiError ("SCSI Status %d, Sense Key %d, Additional Sense Key %d  and Additional Sense Key Qualifier %d",
-        //                                ioHdr.status, (senseBuff[2] & 0xF), senseBuff[12], senseBuff[13]);
-
+        gPtrLoggerScsi->logiDebug ("SCSI Status %d, Sense Key %d, Additional Sense Key %d  and Additional Sense Key Qualifier %d",
+                                        ioHdr.status, (senseBuff[2] & 0xF), senseBuff[12], senseBuff[13]);
+		
+		gPtrLoggerScsi->logiFunctionExit ("sgReadCdb (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
 
     }
 
     *PtrSizeRead = ioHdr.dxfer_len - ioHdr.resid;
-
+	
+	gPtrLoggerScsi->logiFunctionExit ("sgReadCdb (status=%x)", SCRUTINY_STATUS_SUCCESS);
     return (SCRUTINY_STATUS_SUCCESS);
 
 }
@@ -511,7 +524,9 @@ SCRUTINY_STATUS sgWriteCdb (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U8 *Ptr
     Sg_io_hdr   ioHdr;
     int         ioctlRetVal;
     U8          senseBuff[32];
-
+	
+	gPtrLoggerScsi->logiFunctionEntry ("sgWriteCdb ( )");
+	
     sosiMemSet (&ioHdr, 0, sizeof (Sg_io_hdr));
     sosiMemSet (senseBuff, 0, sizeof (senseBuff));
 
@@ -531,6 +546,8 @@ SCRUTINY_STATUS sgWriteCdb (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U8 *Ptr
 
     if ((ioctlRetVal = ioctl ((int) PtrDevice->Handle.ScsiHandle.SgDeviceHandle, SG_IO, &ioHdr)) < 0)
     {
+		gPtrLoggerScsi->logiDebug ("ioctl (status=%x)", ioctlRetVal);
+		gPtrLoggerScsi->logiFunctionExit ("sgWriteCdb (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
     }
 
@@ -552,14 +569,19 @@ SCRUTINY_STATUS sgWriteCdb (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U8 *Ptr
             }
 
         }
+		
+		gPtrLoggerScsi->logiDebug ("SCSI Status %d, Sense Key %d, Additional Sense Key %d  and Additional Sense Key Qualifier %d",
+                                        ioHdr.status, (senseBuff[2] & 0xF), senseBuff[12], senseBuff[13]);
 
+		gPtrLoggerScsi->logiFunctionExit ("sgWriteCdb (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
 
     }
 
     /* Need to find out how many bytes are written*/
     *PtrSizeWritten = Size;
-
+	
+	gPtrLoggerScsi->logiFunctionExit ("sgWriteCdb (status=%x)", SCRUTINY_STATUS_SUCCESS);
     return (SCRUTINY_STATUS_SUCCESS);
 
 }
@@ -571,9 +593,13 @@ SCRUTINY_STATUS sgiPerformScsiPassthrough (__IN__ PTR_SCRUTINY_DEVICE PtrDevice,
 
     U8 retryCount = 3;
     U32 sizeDone = 0;
-
+	
+	gPtrLoggerScsi->logiFunctionEntry ("sgiPerformScsiPassthrough (PtrDevice=%x, PtrScsiRequest=%x)", PtrDevice != NULL, PtrScsiRequest != NULL);
+	
     if (sgOpenDevice (PtrDevice) != SCRUTINY_STATUS_SUCCESS)
     {
+		gPtrLoggerScsi->logiDebug ("Failed sgOpenDevice");
+		gPtrLoggerScsi->logiFunctionExit ("sgiPerformScsiPassthrough (status=%x)", SCRUTINY_STATUS_FAILED);
         return (SCRUTINY_STATUS_FAILED);
     }
 
@@ -589,7 +615,9 @@ SCRUTINY_STATUS sgiPerformScsiPassthrough (__IN__ PTR_SCRUTINY_DEVICE PtrDevice,
         {
             status = sgReadCdb (PtrDevice, PtrScsiRequest->Cdb, PtrScsiRequest->CdbLength, PtrScsiRequest->PtrDataBuffer, PtrScsiRequest->DataBufferLength, &sizeDone);
         }
-
+		
+		gPtrLoggerScsi->logiDebug ("sgXXXXCdb return status %x", status);
+		
         if (status == SCRUTINY_STATUS_SUCCESS)
         {
             break;
@@ -606,7 +634,8 @@ SCRUTINY_STATUS sgiPerformScsiPassthrough (__IN__ PTR_SCRUTINY_DEVICE PtrDevice,
 
     /* We will not worry much about closing status, since we don't need to carry if there was a failure as well */
     sgiCloseDevice (PtrDevice);
-
+	
+	gPtrLoggerScsi->logiFunctionExit ("sgiPerformScsiPassthrough (status=%x)", status);
     return (status);
 
 }
