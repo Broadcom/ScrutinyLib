@@ -439,7 +439,7 @@ typedef struct _ATLAS_SBR_HEADER
 
 
 /** Maximum number of entries in flash table. */
-#define ATLAS_MAX_FLASH_TABLE_ENTRIES 11
+#define ATLAS_MAX_FLASH_TABLE_ENTRIES 12
 
 /**
  * Structure for Flash Table.
