@@ -2003,6 +2003,45 @@ VOID sosiSleep (U32 Milli)
 /**
  *
  *
+ * @method  sosiFprintf()
+ *
+ * @param   PtrArguments    Variable arguments to print
+ *
+ * @return  count            the total number of characters written is returned
+ *
+ * @brief   Method can be used to write outputs to the file
+ *
+ */
+
+S32 sosiFprintf (__IN__ SOSI_FILE_HANDLE Stream, __IN__ const char* PtrArguments, ...)
+{
+    va_list vaargs;
+
+    S32  count = 0;
+
+    #ifdef OS_UEFI
+
+        return (-1);
+
+    #elif defined (OS_WINDOWS)
+        va_start (vaargs, PtrArguments);
+ 
+        count = vfprintf_s (Stream, PtrArguments, vaargs);
+    #else
+        va_start (vaargs, PtrArguments);
+    
+        count = vfprintf (Stream, PtrArguments, vaargs);
+    #endif
+
+    va_end (vaargs);
+
+    return (count);
+
+}
+
+/**
+ *
+ *
  * @method  sosiSprintf()
  *
  * @param   PtrArguments    Variable arguments to print

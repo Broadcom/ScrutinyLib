@@ -311,6 +311,7 @@ static SCRUTINY_LIBTEST_CLI_DEVICECMDS	sCliSwitchCmds[] = {
 	{ "-alllogs", 			&scrtnyGetAllSwitchLogs			},
 	{ "-ltssm", 			&scrtnySwGetCurrentLtssm		},
 	{ "-perf", 				&scrtnySwPortPerf				},
+	{ "-ltssmtrace", 		&scrtnySwGetLtssmTrace			},
 	
 	
     /*          NULL TERMINATORs        */
@@ -3784,6 +3785,7 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
         printf("(25) Cfg Page Read      (26) Reset Device\n");
 		printf("(27) Aladin Capture     (28) SCSI Passthrough\n");
 		printf("(29) Current LTSSM      (30) Performance Counter\n");
+		printf("(31) LTSSM trace      \n");
 		
         fflush(stdin);
         scanf("%d",&choice);
@@ -3908,6 +3910,10 @@ STATUS showSwitchMenu (PTR_SCRUTINY_DEVICE_INFO PtrDeviceInfo)
 				
             case 30:
 				scrtnySwitchPortPerf (INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER, INVALID_PARAMETER);
+				break;
+				
+			case 31:
+				scrtnySwitchGetLtssmTrace (INVALID_PARAMETER, INVALID_PARAMETER);
 				break;
             
 			case 0:
@@ -5154,4 +5160,132 @@ STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTim
     free (PtrPciePortPerformance);
     return (STATUS_SUCCESS);
 
+}
+
+
+STATUS scrtnySwGetLtssmTrace (U32 ArgumentCount, const char** PtrArguments, PU32 PtrCurrentIndex)
+{
+	U32		port, poll;
+	(*PtrCurrentIndex) += 1;
+	while (*PtrCurrentIndex < ArgumentCount)
+	{
+		if (scrtnyLibOsiStringCompare ("-port", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				port = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -ltssmtrace -port <value> -poll <seconds>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else if (scrtnyLibOsiStringCompare ("-poll", PtrArguments[(*PtrCurrentIndex)]) == 0)
+		{
+			(*PtrCurrentIndex) += 1;
+			if ((*PtrCurrentIndex < ArgumentCount) && (PtrArguments[(*PtrCurrentIndex)][0] != '-'))
+			{
+				poll = atoi ((char *)PtrArguments[(*PtrCurrentIndex)]);
+			}
+			else 
+			{
+				printf ("scrutinyLibTest -i <index> -ltssmtrace -port <value> -poll <seconds>\n");
+				return (STATUS_FAILED);
+			}
+		}
+		else 
+		{
+			printf ("Unknow parameter %s\n", PtrArguments[(*PtrCurrentIndex)]);
+			printf ("scrutinyLibTest -i <index> -ltssmtrace -port <value> -poll <seconds>\n");
+			return (STATUS_FAILED);
+		}
+		
+		(*PtrCurrentIndex) += 1;
+	}
+	return (scrtnySwitchGetLtssmTrace (port, poll));
+}
+
+STATUS scrtnySwitchGetLtssmTrace (U32 Port, U32 Poll)
+{
+	U32  portNum, poll, triggered = 0;
+	SCRUTINY_STATUS	 libStatus;
+#if defined(OS_LINUX)
+    char *folderName = "switchltssm/";
+#elif defined(OS_WINDOWS)
+    char *folderName = "switchltssm\\";
+#endif 
+	
+	if (Port == INVALID_PARAMETER)
+	{
+		printf("Input the pcie port number: ");
+		fflush(stdin);
+		scanf("%d",&portNum);
+	}
+	else
+	{
+		portNum = Port;
+	}
+	
+	if (Poll == INVALID_PARAMETER)
+	{
+		printf("Input polling timer (seconds): ");
+		fflush(stdin);
+		scanf("%d",&poll);
+	}
+	else 
+	{
+		poll = Poll;
+	}
+	
+    char currentDirectoryPath[512] = { '\0' };
+
+    if (scrtnyOtcGetCurrentDirectory(currentDirectoryPath) != STATUS_SUCCESS)
+    {
+        printf("Unable to get current working directory");
+
+        return (STATUS_FAILED);
+    }
+    strcat(currentDirectoryPath, folderName);
+	
+	libStatus = ScrutinySwitchLtssmSetup (&gSelectDeviceHandle, portNum);
+	if (libStatus != SCRUTINY_STATUS_SUCCESS)
+    {
+        printf("\n\nscrtnySwitchLtssm: failed to setup LTSSM %x\n\n", libStatus);
+		return (STATUS_FAILED);
+    }
+	
+	while (triggered != 1)
+	{
+		scrtnyLibOsiSleep (1000);		
+		libStatus = ScrutinySwitchLtssmIsTriggerred (&gSelectDeviceHandle, portNum, &triggered);
+		if (libStatus != SCRUTINY_STATUS_SUCCESS)
+		{
+			printf("\n\nscrtnySwitchLtssm: failed to get LTSSM tirgger status %x\n\n", libStatus);
+			return (STATUS_FAILED);
+		}
+		
+		if (poll-- == 0)
+		{
+			break;
+		}
+	}
+	
+	if (triggered == 1)
+	{
+		printf("LTSSM trigger on the Polling.Active\n");
+	}
+	else
+	{
+		printf("LTSSM is not triggered, stopping...\n");
+	}
+	
+	libStatus = ScrutinySwitchStopAndGetLtssm (&gSelectDeviceHandle, portNum, currentDirectoryPath);
+	if (libStatus != SCRUTINY_STATUS_SUCCESS)
+	{
+		printf("\n\nscrtnySwitchLtssm: failed to get LTSSM dump %x\n\n", libStatus);
+	}
+
+    return (STATUS_SUCCESS);    
 }

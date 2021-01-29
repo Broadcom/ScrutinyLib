@@ -329,6 +329,7 @@ ifneq ($(filter 1,$(LIB_SUPPORT_SWITCH) $(LIB_SUPPORT_EXPANDER)),)
 		HAL_OBJ += $(DIR_HAL_SWITCH)/switchlanemargin.o
 		HAL_OBJ += $(DIR_HAL_SWITCH)/switchaladin.o
 		HAL_OBJ += $(DIR_HAL_SWITCH)/switchportperformance.o
+		HAL_OBJ += $(DIR_HAL_SWITCH)/switchltssm.o
 		#HAL_OBJ += $(DIR_HAL_SWITCH)/switchsbr.o
 	endif
  

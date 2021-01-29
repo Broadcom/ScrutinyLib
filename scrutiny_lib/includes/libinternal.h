@@ -179,7 +179,9 @@ SCRUTINY_STATUS slibiSwitchSoftwareEye( __IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
 SCRUTINY_STATUS slibiSwitchGetPowerOnSense (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_POWER_ON_SENSE PtrSwPwrOnSense );
 SCRUTINY_STATUS slibiSwitchGetCcrStatus (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_CCR_STATUS PtrSwCcrStatus );
 SCRUTINY_STATUS slibiSwitchGetPciePortPerformance (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __OUT__   PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE   PtrPciePortPerformance );
-
+SCRUTINY_STATUS slibiSwitchLtssmSetup ( __IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U32 Port);
+SCRUTINY_STATUS slibiSwitchLtssmIsTriggerred (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U32 Port, __IN__ PU32 PtrCaptureStatus);
+SCRUTINY_STATUS slibiSwitchStopAndGetLtssm (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U32 Port, __IN__ const char* PtrDumpFilePath);
 
 
 SCRUTINY_STATUS slibiExpanderScsiPassthrough (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __INOUT__ PTR_SCRUTINY_SCSI_PASSTHROUGH PtrScsiRequest);

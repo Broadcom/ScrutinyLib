@@ -3373,6 +3373,42 @@ SCRUTINY_STATUS slibiSwitchSoftwareEye( __IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
 
 }
 
+
+SCRUTINY_STATUS slibiSwitchLtssmSetup ( __IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U32 Port)
+{
+    if (PtrDevice->ProductFamily != SCRUTINY_PRODUCT_FAMILY_SWITCH)
+    {
+        return (SCRUTINY_STATUS_ILLEGAL_REQUEST);
+    }
+
+    return (sltLtssmSetup ( PtrDevice, Port));
+}
+
+
+SCRUTINY_STATUS slibiSwitchLtssmIsTriggerred (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __IN__ U32 Port, __IN__ PU32 PtrCaptureStatus)
+{
+    if (PtrDevice->ProductFamily != SCRUTINY_PRODUCT_FAMILY_SWITCH)
+    {
+        return (SCRUTINY_STATUS_ILLEGAL_REQUEST);
+    }
+
+    return (sltLtssmIsTriggerred (PtrDevice, Port, PtrCaptureStatus));
+}
+
+SCRUTINY_STATUS slibiSwitchStopAndGetLtssm (
+    __IN__ PTR_SCRUTINY_DEVICE              PtrDevice,
+    __IN__ U32                              Port,
+    __IN__ const char*                      PtrDumpFilePath
+)
+{
+    if (PtrDevice->ProductFamily != SCRUTINY_PRODUCT_FAMILY_SWITCH)
+    {
+        return (SCRUTINY_STATUS_ILLEGAL_REQUEST);
+    }
+
+    return (sltStopAndGetLtssm (PtrDevice, Port, PtrDumpFilePath));
+}
+
 #endif
 
 /**

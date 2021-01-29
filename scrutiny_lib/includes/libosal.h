@@ -86,6 +86,8 @@ VOID sosiMemCopy (__OUT__ VOID *PtrDest, __IN__ const VOID *PtrSrc, __IN__ U32 S
 VOID sosiMemSet (__OUT__ VOID *PtrMem, __IN__ U8 FillChar, __IN__ U32 Size);
 VOID sosiSleep (U32 Milli);
 
+S32 sosiFprintf (__IN__ SOSI_FILE_HANDLE Stream, __IN__ const char* PtrArguments, ...);
+
 U32 sosiSprintf (__OUT__ char *PtrString, __IN__ U32 StringSize, __IN__ const char* PtrArguments, ...);
 
 U32 sosiIsPrint (const char Character);

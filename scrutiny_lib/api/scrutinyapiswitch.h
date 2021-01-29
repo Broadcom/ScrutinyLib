@@ -207,6 +207,23 @@ SCRUTINY_STATUS ScrutinySwitchStopAladinCapture (
 	__OUT__ PU32 							PtrStopStatus
 );
 
+SCRUTINY_STATUS ScrutinySwitchLtssmSetup ( 
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE      PtrProductHandle,
+    __IN__ U32                              Port
+);
+
+SCRUTINY_STATUS ScrutinySwitchLtssmIsTriggerred ( 
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE      PtrProductHandle,
+    __IN__ U32                              Port, 
+    __IN__ PU32                             PtrCaptureStatus
+);
+
+SCRUTINY_STATUS ScrutinySwitchStopAndGetLtssm (
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE      PtrProductHandle,
+    __IN__ U32                              Port,
+    __IN__ const char*                      PtrDumpFilePath
+);
+
 #endif
 
 

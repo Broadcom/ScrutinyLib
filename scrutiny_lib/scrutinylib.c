@@ -2564,6 +2564,55 @@ SCRUTINY_STATUS ScrutinySwitchSoftwareEye (__IN__   PTR_SCRUTINY_PRODUCT_HANDLE 
 
 }
 
+SCRUTINY_STATUS ScrutinySwitchLtssmSetup ( 
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE      PtrProductHandle,
+    __IN__ U32                              Port
+)
+{
+    PTR_SCRUTINY_DEVICE ptrDevice = NULL;
+
+    if (slibiProductHandleToScrutinyDevice (PtrProductHandle, &ptrDevice))
+    {
+        return (SCRUTINY_STATUS_INVALID_HANDLE);
+    }
+
+    return (slibiSwitchLtssmSetup (ptrDevice, Port));
+}
+
+SCRUTINY_STATUS ScrutinySwitchLtssmIsTriggerred ( 
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE      PtrProductHandle,
+    __IN__ U32                              Port, 
+    __IN__ PU32                             PtrCaptureStatus
+)
+{
+    PTR_SCRUTINY_DEVICE ptrDevice = NULL;
+
+    if (slibiProductHandleToScrutinyDevice (PtrProductHandle, &ptrDevice))
+    {
+        return (SCRUTINY_STATUS_INVALID_HANDLE);
+    }
+
+    return (slibiSwitchLtssmIsTriggerred (ptrDevice, Port, PtrCaptureStatus));
+}
+
+
+SCRUTINY_STATUS ScrutinySwitchStopAndGetLtssm (
+    __IN__ PTR_SCRUTINY_PRODUCT_HANDLE      PtrProductHandle,
+    __IN__ U32                              Port,
+    __IN__ const char*                      PtrDumpFilePath
+)
+{
+    PTR_SCRUTINY_DEVICE ptrDevice = NULL;
+
+    if (slibiProductHandleToScrutinyDevice (PtrProductHandle, &ptrDevice))
+    {
+        return (SCRUTINY_STATUS_INVALID_HANDLE);
+    }
+
+    return (slibiSwitchStopAndGetLtssm (ptrDevice, Port, PtrDumpFilePath));
+}
+
+
 
 /**
  *

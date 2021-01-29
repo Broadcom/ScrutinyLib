@@ -244,6 +244,7 @@
 #include "pcicommon.h"
 #include "pcilinux.h"
 #include "switchaladin.h"
+#include "switchltssm.h"
 #endif
 
 #include "pciscan.h"
