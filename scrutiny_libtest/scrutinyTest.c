@@ -1698,7 +1698,7 @@ STATUS scrtnySwitchGetTemperature (SOSI_Test_FILE_HANDLE FilePtr)
     return STATUS_SUCCESS;
 }
 
-STATUS appPrintHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
+STATUS scrtnySwitchPortPropertiesPrintHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 {
     fprintf (FilePtr, "\n");
     fprintf (FilePtr, "Type:  Port type Down-Downstream, Up-Upstream, Fab-Fabric Mode, Mgmt-Management\n");
@@ -1715,7 +1715,7 @@ STATUS appPrintHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 
 }
 
-STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
+STATUS scrtnySwitchPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
 {
 
     /* Port Index */
@@ -1993,7 +1993,7 @@ STATUS appPrintPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrC
 
 }
 
-STATUS appPrintDownStreamPortHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
+STATUS scrtnySwitchPortPropertiesPrintDspHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 {
     fprintf (FilePtr, "\n");
     fprintf (FilePtr, "Downstream Ports \n");
@@ -2006,7 +2006,7 @@ STATUS appPrintDownStreamPortHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 
 }
 
-STATUS appPrintDownStreamPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
+STATUS scrtnySwitchPortPropertiesPrintDspProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
 {
 
 
@@ -2036,7 +2036,7 @@ STATUS appPrintDownStreamPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGUR
 }
 
 
-STATUS appPrintHostPortHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
+STATUS scrtnySwitchPortpropertiesPrintHpHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 {
     fprintf (FilePtr, "\n");
     fprintf (FilePtr, "Host Ports \n");
@@ -2049,7 +2049,7 @@ STATUS appPrintHostPortHeaders(SOSI_Test_FILE_HANDLE  FilePtr)
 
 }
 
-STATUS appPrintHostPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
+STATUS scrtnySwitchPrintHpProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION PtrConfiguration, SOSI_Test_FILE_HANDLE  FilePtr)
 {
     U32 index;
 
@@ -2069,7 +2069,7 @@ STATUS appPrintHostPortProperties (U32 PortIndex, PTR_SWITCH_PORT_CONFIGURATION 
 
 }
 
-STATUS ScrutinySwitchDecodePciePortProperties (
+STATUS scrtnySwitchDecodePciePortProperties (
 	PTR_SCRUTINY_SWITCH_PORT_PROPERTIES  PtrPciePortProperties, 
 	SOSI_Test_FILE_HANDLE  FilePtr
 )
@@ -2079,36 +2079,36 @@ STATUS ScrutinySwitchDecodePciePortProperties (
     PTR_SWITCH_PORT_CONFIGURATION     ptrConfiguration;
 
     //common
-    appPrintHeaders(FilePtr);
+    scrtnySwitchPortPropertiesPrintHeaders(FilePtr);
     for (entryIndex = 0; entryIndex < PtrPciePortProperties->TotalPortConfigEntry; entryIndex++)
     {
         ptrConfiguration = &(PtrPciePortProperties->PortConfigurations[entryIndex]);
         portIndex = PtrPciePortProperties->PortConfigurations[entryIndex].PortNumber; 
-        appPrintPortProperties (portIndex,  ptrConfiguration, FilePtr);
+        scrtnySwitchPrintPortProperties (portIndex,  ptrConfiguration, FilePtr);
     }
 
     //downstream port
-    appPrintDownStreamPortHeaders (FilePtr);
+    scrtnySwitchPortPropertiesPrintDspHeaders (FilePtr);
     for (entryIndex = 0; entryIndex < PtrPciePortProperties->TotalPortConfigEntry; entryIndex++)
     {
         ptrConfiguration = &(PtrPciePortProperties->PortConfigurations[entryIndex]);
         portIndex = PtrPciePortProperties->PortConfigurations[entryIndex].PortNumber;
         if ((ptrConfiguration->PortType == SWITCH_PORT_TYPE_DOWNSTREAM) || (ptrConfiguration->PortType == SWITCH_PORT_TYPE_DOWNSTREAM_BSW))
         { 
-            appPrintDownStreamPortProperties (portIndex,  ptrConfiguration, FilePtr);
+            scrtnySwitchPortPropertiesPrintDspProperties (portIndex,  ptrConfiguration, FilePtr);
         }
     }
 
     
     //Host port
-    appPrintHostPortHeaders(FilePtr);
+    scrtnySwitchPortpropertiesPrintHpHeaders(FilePtr);
     for (entryIndex = 0; entryIndex < PtrPciePortProperties->TotalPortConfigEntry; entryIndex++)
     {
         ptrConfiguration = &(PtrPciePortProperties->PortConfigurations[entryIndex]);
         portIndex = PtrPciePortProperties->PortConfigurations[entryIndex].PortNumber;
         if ((ptrConfiguration->PortType == SWITCH_PORT_TYPE_UPSTREAM) || (ptrConfiguration->PortType == SWITCH_PORT_TYPE_UPSTREAM_BSW))
         { 
-            appPrintHostPortProperties (portIndex,  ptrConfiguration, FilePtr);
+            scrtnySwitchPrintHpProperties (portIndex,  ptrConfiguration, FilePtr);
         }
     }
 
@@ -2136,7 +2136,7 @@ STATUS scrtnySwitchPortProperties (SOSI_Test_FILE_HANDLE  FilePtr)
     if (libStatus == SCRUTINY_STATUS_SUCCESS)
     {
 		fprintf (fPtr, "---- Port Properties ----\n");
-        ScrutinySwitchDecodePciePortProperties (&PciePortProperties, fPtr);
+        scrtnySwitchDecodePciePortProperties (&PciePortProperties, fPtr);
     }
     else 
     {
@@ -4806,7 +4806,7 @@ STATUS scrtnySwitchGetCurrentLtssm (U32 Port, U32 Interval, U32 Count)
 }
 
 
-STATUS ScrutinySwitchDecodePciePortPerformance (__IN__ PTR_SCRUTINY_PRODUCT_HANDLE PtrProductHandle, __OUT__ PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE 	PtrPciePortPerformance)
+STATUS scrtnySwitchDecodePciePortPerformance (__IN__ PTR_SCRUTINY_PRODUCT_HANDLE PtrProductHandle, __OUT__ PTR_SCRUTINY_SWITCH_PCIE_PORT_PERFORMANCE 	PtrPciePortPerformance)
 {
     U32 portIndex;
     char tempstr[100];
@@ -4913,29 +4913,29 @@ STATUS ScrutinySwitchDecodePciePortPerformance (__IN__ PTR_SCRUTINY_PRODUCT_HAND
 
             printf("%3d Ing    ", portIndex);
             printf("%9llu.%llu%%  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressLinkUtilization / 100, PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressLinkUtilization % 100);                        
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalBytes, tempstr, 100);
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalBytes, tempstr, 100);
             printf("%10s  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalByteRate, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressTotalByteRate, tempstr, 100);            
             printf("%10s/S  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadTotalBytes, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadTotalBytes, tempstr, 100);            
             printf("%10s  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadByteRate, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadByteRate, tempstr, 100);            
             printf("%10s/S  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadAvgPerTlp, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.IngressPayloadAvgPerTlp, tempstr, 100);            
             printf("%10s  ", tempstr);
 
             printf("\n");
             printf("%3d Eg     ", portIndex);            
             printf("%9llu.%llu%%  ", PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressLinkUtilization / 100, PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressLinkUtilization % 100);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalBytes, tempstr, 100);
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalBytes, tempstr, 100);
             printf("%10s  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalByteRate, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressTotalByteRate, tempstr, 100);            
             printf("%10s/S  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadTotalBytes, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadTotalBytes, tempstr, 100);            
             printf("%10s  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadByteRate, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadByteRate, tempstr, 100);            
             printf("%10s/S  ", tempstr);
-            GroupDigitsWithTag (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadAvgPerTlp, tempstr, 100);            
+            scrtnyFormatDigitsWithUnit (PtrPciePortPerformance->PortPerfData[portIndex].PortPerfStats.EgressPayloadAvgPerTlp, tempstr, 100);            
             printf("%10s  ", tempstr);
 
             printf("\n\n");
@@ -4945,10 +4945,12 @@ STATUS ScrutinySwitchDecodePciePortPerformance (__IN__ PTR_SCRUTINY_PRODUCT_HAND
     return (STATUS_SUCCESS);
 }
 
-void GroupDigitsWithTag (unsigned long long Value, char *PtrStr, U32 StrSize)
+STATUS scrtnyFormatDigitsWithUnit (unsigned long long Value, char *PtrStr, U32 StrSize)
 {
     unsigned long long decimalValue;
-
+    unsigned long long fractionValue;
+    unsigned long long percentValue;
+    
     memset (PtrStr, 0x00, StrSize);
     
     if( Value < (1 << 10) )              // bytes
@@ -4958,23 +4960,37 @@ void GroupDigitsWithTag (unsigned long long Value, char *PtrStr, U32 StrSize)
     else if( Value < (1 << 20) )         // KB
     {
         decimalValue = (unsigned long long )Value / (1 << 10);
-        sprintf(PtrStr, "%llu KiB", decimalValue);
+        fractionValue = (unsigned long long )Value % (1 << 10);
+        percentValue = (unsigned long long )fractionValue * 100 / (1 << 10);
+        
+        sprintf(PtrStr, "%llu.%llu KiB", decimalValue, percentValue);
     }
     else if( Value < ((unsigned long long)1 << 30) )    // MB
     {
         decimalValue = (unsigned long long)Value / (1 << 20);
-        sprintf(PtrStr, "%llu MiB", decimalValue);
+        fractionValue = (unsigned long long )Value % (1 << 20);
+        percentValue = (unsigned long long )fractionValue * 100 / (1 << 20);
+
+        sprintf(PtrStr, "%llu.%llu MiB", decimalValue, percentValue);
     }
     else if( Value < ((unsigned long long)1 << 40) )    // GB
     {
         decimalValue = (unsigned long long)Value / (1 << 30);
-        sprintf(PtrStr, "%llu GiB", decimalValue);
+        fractionValue = (unsigned long long )Value % (1 << 30);
+        percentValue = (unsigned long long )fractionValue * 100 / (1 << 30);
+
+        sprintf(PtrStr, "%llu.%llu GiB", decimalValue, percentValue);
     }
     else                                // TB
     {
         decimalValue = (unsigned long long)Value / ((unsigned long long)1 << 40);
-        sprintf(PtrStr, "%llu TiB", decimalValue);
+        fractionValue = (unsigned long long)Value % ((unsigned long long)1 << 40);
+        percentValue = (unsigned long long)fractionValue * 100 / ((unsigned long long)1 << 40);
+
+        sprintf(PtrStr, "%llu.%llu TiB", decimalValue, percentValue);
     }
+    return (STATUS_SUCCESS);
+
 }
 
 
@@ -5150,7 +5166,7 @@ STATUS scrtnySwitchPortPerf (U32 Loops, U32 Delay, U32 Statistic, U32 ElapsedTim
             return (STATUS_FAILED);    
         }
 
-        ScrutinySwitchDecodePciePortPerformance ( &gSelectDeviceHandle, PtrPciePortPerformance);
+        scrtnySwitchDecodePciePortPerformance ( &gSelectDeviceHandle, PtrPciePortPerformance);
     }
 
     //Step 4 Stop
