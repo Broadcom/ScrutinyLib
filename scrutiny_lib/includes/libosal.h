@@ -104,7 +104,7 @@ VOID sosiStringCopy (__OUT__ char *PtrDestination, __IN__ const char *PtrSource)
 BOOLEAN sosIsNumericChar (__IN__ U8 NumChar);
 U32 sosiAtoi (__IN__ const char *PtrStr);
 void sosiPrintTimestamp (const char* PtrPrefix);
-
+U32 sosiFileIsExist (__IN__ const char *PtrFileName);
 SCRUTINY_STATUS sosiFileWrite (__IN__ SOSI_FILE_HANDLE FileHandle, __IN__ const U8 *PtrBuffer, __IN__ U32 Size);
 SOSI_FILE_HANDLE sosiFileOpen (__IN__ const char *PtrFileName, __IN__ const char *PtrMode);
 void sosiFileClose (__IN__ SOSI_FILE_HANDLE FileHandle);

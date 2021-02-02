@@ -2134,6 +2134,30 @@ SCRUTINY_STATUS sosiStringCompareIgnoreCase (__IN__ const char *PtrFirst, __IN__
 
 }
 
+
+/**
+ *
+ * @method  sosiIsFileExist()
+ *
+ * @param   PtrFileName     full path file name
+ *
+ * @brief   check whether the given file exists
+ *
+ */
+
+U32 sosiFileIsExist (__IN__ const char *PtrFileName)
+{
+  
+    #if defined(OS_LINUX) 
+        return (access (PtrFileName, 0) == 0);
+    #elif defined (OS_WINDOWS)
+        return (_access (PtrFileName, 0) == 0);
+    #else
+        while (0);
+    #endif
+
+}
+
 /**
  *
  * @method  sosiFileWrite()

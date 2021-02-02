@@ -79,6 +79,7 @@
 #include <ctype.h>
 #include <semaphore.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #endif
 
@@ -105,7 +106,7 @@
 #include <crtdefs.h>
 #include <process.h>
 #include <direct.h>
-
+#include <io.h>
 
 #define INLINE
 #endif

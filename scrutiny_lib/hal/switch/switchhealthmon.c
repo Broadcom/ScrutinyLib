@@ -306,12 +306,15 @@ SCRUTINY_STATUS shmiDumpPortSegment (
 
      for (portIndex = 0; portIndex < ATLAS_PMG_MAX_PHYS; )
      {
+#if 0		 
         //if valid bit == 0; just skip it.
         if (PtrSwhHealthData->PortMonData[portIndex].Valid == 0)
         {
             portIndex++;
             continue;
         }
+#endif
+
         index = portIndex + 1;
         do 
         {   
@@ -380,15 +383,15 @@ SCRUTINY_STATUS shmiDumpPortSegment (
 
 SCRUTINY_STATUS shmiDumpHealthConfigurationsToFiles(  
     __IN__ const char*                PtrFolderName,
-    __IN__ PTR_SWH_HEALTH_MONITOR_DATA  PtrSwhHealthData
+    __IN__ PTR_SWH_HEALTH_MONITOR_DATA  PtrSwhHealthData,
+	__IN__ char*                      PtrFileName
 )
 {
     char                   inifileName[512];
     SCRUTINY_STATUS        status = SCRUTINY_STATUS_SUCCESS;
     SOSI_FILE_HANDLE       fileHandle;
 
-    //gPtrLoggerController->logiFunctionEntry ("chmInitializeHealthConfigurations (PtrFolderName=%x)", PtrFolderName != NULL);    
-    gPtrLoggerSwitch->logiFunctionEntry ("shmiDumpHealthConfigurationsToFiles (PtrFolderName=%x)", PtrFolderName != NULL);
+    gPtrLoggerSwitch->logiFunctionEntry ("shmiDumpHealthConfigurationsToFiles (PtrFolderName=%x, PtrSwhHealthData=%x, PtrFileName=%x)", PtrFolderName != NULL, PtrSwhHealthData != NULL, PtrFileName != NULL);
     
     if (PtrFolderName == NULL)
     {
@@ -407,7 +410,7 @@ SCRUTINY_STATUS shmiDumpHealthConfigurationsToFiles(
 
     
     sosiStringCopy (inifileName, PtrFolderName);
-    sosiStringCat (inifileName, SWH_HEALTH_CONFIG_LOG);
+    sosiStringCat (inifileName, PtrFileName);
     
     fileHandle = sosiFileOpen (inifileName, "ab");
 
@@ -712,6 +715,14 @@ SCRUTINY_STATUS shmiInitializeHealthConfigurations( __IN__ const char* PtrFolder
     sosiStringCopy (logfileName, PtrFolderName);
 
     sosiStringCat (logfileName, SWH_HEALTH_CONFIG_INI);
+	
+	/* firstly check whether the INI file exist */
+    if (0 == sosiFileIsExist (logfileName))
+    {
+        gPtrLoggerController->logiDebug ("INI file %s does not exist!", logfileName);
+        gPtrLoggerController->logiFunctionExit ("shmiInitializeHealthConfigurations (status=0x%x)", SCRUTINY_STATUS_FILE_OPEN_FAILED);
+        return (SCRUTINY_STATUS_FILE_OPEN_FAILED);
+    }
     
     if (lcpiParserProcessINIFile (logfileName, &ptrConfigDictionary))
     {
@@ -771,6 +782,7 @@ SCRUTINY_STATUS  shmiSwitchHealthCheck (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
     SWH_HEALTH_MONITOR_DATA                 swhHealthConfigDataReadback;
     U32                                     index;
     SCRUTINY_SWITCH_HEALTH_ERROR_INFO       errorInfo;
+	char *                               	ptrOutFileName = SWH_HEALTH_CONFIG_LOG;
 
     gPtrLoggerSwitch->logiFunctionEntry ("shmiSwitchHealthCheck (PtrDevice=%x, PtrConfigFilePath=%x, DumpToFile=%x,PtrErrorCode=%x)", PtrDevice != NULL, PtrConfigFilePath != NULL, DumpToFile, PtrErrorCode!=NULL);
 
@@ -787,11 +799,17 @@ SCRUTINY_STATUS  shmiSwitchHealthCheck (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
     }
     
     status = shmiInitializeHealthConfigurations (PtrConfigFilePath);
-    if (status)
+    if (status != SCRUTINY_STATUS_SUCCESS)
     {
-        gPtrLoggerSwitch->logiFunctionExit ("shmiSwitchHealthCheck  (Status = %x) ",status);
-        return (status);
-
+        if (status != SCRUTINY_STATUS_FILE_OPEN_FAILED) 
+        {
+            gPtrLoggerExpanders->logiFunctionExit ("shmiSwitchHealthCheck  (Status = %x) ",status);
+            return (status);
+        }
+        else 
+        {
+            ptrOutFileName = SWH_HEALTH_CONFIG_INI;
+        }
     }
 
 //    status = shmiDumpHealthConfigurationsToFiles (PtrConfigFilePath, &gSwhHealthConfigData);
@@ -852,7 +870,7 @@ SCRUTINY_STATUS  shmiSwitchHealthCheck (__IN__ PTR_SCRUTINY_DEVICE PtrDevice, __
     status = shmiFillSwhHealthConfigDataReadBackData (PtrDevice,  ptrSwhHealthInfo, ptrPciePortProperties, &swhHealthConfigDataReadback);
     if (DumpToFile)
     {
-        status = shmiDumpHealthConfigurationsToFiles (PtrConfigFilePath, &swhHealthConfigDataReadback);
+        status = shmiDumpHealthConfigurationsToFiles (PtrConfigFilePath, &swhHealthConfigDataReadback, ptrOutFileName);
     }
     status = shmiCompareHealthData (&gSwhHealthConfigData, &swhHealthConfigDataReadback, &errorInfo);
     //Currently we only return one U32 data to upper lay ,because C++ wrapper can not handle structure very well.
